@@ -1,62 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import DeckDemo from './components/DeckDemo';
+import GameDemo from './components/GameDemo';
+import RoomDemo from './components/RoomDemo';
+import Auth from './components/Auth';
+import ClubManagement from './components/ClubManagement';
+import RoomManagement from './components/RoomManagement';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
+  const [user, setUser] = useState(null);
+  const [selectedClubId, setSelectedClubId] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+
+  useEffect(() => {
+    // 检查用户是否已登录
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    
+    // 检查是否有选中的俱乐部ID
+    if (window.selectedClubId) {
+      setSelectedClubId(window.selectedClubId);
+      setCurrentView('rooms');
+      // 清除全局变量
+      window.selectedClubId = null;
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    setCurrentView('home');
+  };
+
+  const handleEnterClub = (clubId) => {
+    setSelectedClubId(clubId);
+    setCurrentView('rooms');
+  };
+
+  const handleEnterRoom = (roomId) => {
+    setSelectedRoomId(roomId);
+    setCurrentView('game');
+  };
 
   const renderView = () => {
     switch(currentView) {
+      case 'auth':
+        return <Auth />;
+      case 'clubs':
+        return <ClubManagement onEnterClub={handleEnterClub} />;
+      case 'rooms':
+        return <RoomManagement clubId={selectedClubId} onEnterRoom={handleEnterRoom} />;
+      case 'game':
+        return <GameDemo roomId={selectedRoomId} />;
       case 'deck-demo':
         return <DeckDemo />;
+      case 'game-demo':
+        return <GameDemo />;
+      case 'room-demo':
+        return <RoomDemo />;
       default:
         return (
           <div className="home-view">
             <h1>🃏 德州扑克系统</h1>
-            <p>第一阶段：核心发牌功能已完成</p>
             
-            <div className="feature-grid">
-              <div className="feature-card">
-                <h3>🎲 公平发牌</h3>
-                <p>Fisher-Yates洗牌算法 + SecureRandom</p>
-                <button 
-                  className="demo-btn"
-                  onClick={() => setCurrentView('deck-demo')}
-                >
-                  体验发牌演示
-                </button>
+            {!user ? (
+              <div className="auth-section">
+                <h2>欢迎使用德州扑克系统</h2>
+                <p>请先登录或注册账号开始游戏</p>
+                <div className="auth-buttons">
+                  <button 
+                    className="auth-btn"
+                    onClick={() => setCurrentView('auth')}
+                  >
+                    登录/注册
+                  </button>
+                </div>
               </div>
-              
-              <div className="feature-card">
-                <h3>🔒 安全保证</h3>
-                <p>加密级随机数 + 种子验证</p>
-                <span className="status">已实现</span>
+            ) : (
+              <div className="user-section">
+                <div className="user-info">
+                  <h2>欢迎回来，{user.username}！</h2>
+                  <p>邮箱：{user.email}</p>
+                </div>
+                <div className="user-actions">
+                  <button 
+                    className="action-btn"
+                    onClick={() => setCurrentView('clubs')}
+                  >
+                    🏛️ 俱乐部管理
+                  </button>
+                  <button 
+                    className="action-btn"
+                    onClick={handleLogout}
+                  >
+                    退出登录
+                  </button>
+                </div>
               </div>
-              
-              <div className="feature-card">
-                <h3>📊 统计验证</h3>
-                <p>随机性测试 + 可重现性验证</p>
-                <span className="status">已实现</span>
-              </div>
-              
-              <div className="feature-card coming-soon">
-                <h3>🎮 游戏逻辑</h3>
-                <p>牌型识别 + 结算系统</p>
-                <span className="status">开发中</span>
-              </div>
-            </div>
-            
-            <div className="tech-info">
-              <h3>技术实现</h3>
-              <ul>
-                <li>✅ Spring Boot 3.2 + Lombok注解</li>
-                <li>✅ 52张标准扑克牌库</li>
-                <li>✅ Fisher-Yates洗牌算法</li>
-                <li>✅ 德州扑克发牌规则（烧牌机制）</li>
-                <li>✅ 完整的单元测试覆盖</li>
-                <li>⏳ 牌型识别算法（下一阶段）</li>
-              </ul>
-            </div>
+            )}
           </div>
         );
     }
@@ -71,12 +115,22 @@ function App() {
         >
           首页
         </button>
-        <button 
-          className={currentView === 'deck-demo' ? 'active' : ''}
-          onClick={() => setCurrentView('deck-demo')}
-        >
-          发牌演示
-        </button>
+        {user && (
+          <>
+            <button 
+              className={currentView === 'clubs' ? 'active' : ''}
+              onClick={() => setCurrentView('clubs')}
+            >
+              俱乐部
+            </button>
+            <button 
+              className={currentView === 'rooms' ? 'active' : ''}
+              onClick={() => setCurrentView('rooms')}
+            >
+              房间管理
+            </button>
+          </>
+        )}
       </nav>
       
       <main className="app-main">

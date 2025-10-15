@@ -1,0 +1,606 @@
+/* 游戏演示主容器 */
+.game-demo {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+}
+
+/* 演示头部 */
+.demo-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  color: white;
+}
+
+.demo-header h2 {
+  margin: 0 0 20px 0;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.demo-controls {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.create-game-btn, .refresh-btn, .next-hand-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.next-hand-btn {
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+}
+
+.create-game-btn:hover, .refresh-btn:hover, .next-hand-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.create-game-btn:disabled, .refresh-btn:disabled, .next-hand-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 错误和加载消息 */
+.error-message, .loading-message {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 10px;
+}
+
+.error-message {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  color: #c62828;
+}
+
+.loading-message {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  color: #1565c0;
+}
+
+/* 游戏状态 */
+.game-state {
+  margin-top: 30px;
+}
+
+.game-info {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.game-info h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  text-align: center;
+}
+
+.game-stats {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.stat .label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.stat .value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.stat.current-turn .value {
+  color: #e74c3c;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 扑克桌 */
+.poker-table {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  height: 600px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #0d5016 0%, #1a7a2e 50%, #0d5016 100%);
+  border-radius: 50% 50% 50% 50% / 40% 40% 40% 40%;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    inset 0 0 20px rgba(255, 255, 255, 0.1);
+  border: 12px solid #8b4513;
+  overflow: visible;
+}
+
+.table-surface {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* 公共牌 */
+.community-cards {
+  text-align: center;
+}
+
+.community-cards h4 {
+  margin: 0 0 10px 0;
+  color: white;
+  font-size: 16px;
+}
+
+.cards-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.community-card .card {
+  width: 40px;
+  height: 60px;
+  font-size: 14px;
+}
+
+/* 底池显示 */
+.pot-display {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 15px 25px;
+  text-align: center;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border: 2px solid #daa520;
+}
+
+.pot-amount {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.current-bet {
+  font-size: 16px;
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* 结算信息 */
+.settlement-info {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(46, 204, 113, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #2ecc71;
+}
+
+.settlement-summary {
+  font-size: 16px;
+  font-weight: bold;
+  color: #27ae60;
+  margin-bottom: 5px;
+}
+
+.total-distributed {
+  font-size: 14px;
+  color: #2ecc71;
+}
+
+/* 玩家座位 */
+.player-seat {
+  position: absolute;
+  width: 260px;
+  min-height: 180px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 3px solid #daa520;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.player-seat.current-player {
+  border-color: #e74c3c;
+  box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.player-seat.folded {
+  opacity: 0.6;
+  border-color: #6c757d;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.player-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.all-in-badge, .folded-badge {
+  background: #e74c3c;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.folded-badge {
+  background: #6c757d;
+}
+
+.player-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.player-stats > div {
+  text-align: center;
+  padding: 4px;
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 4px;
+}
+
+.player-stats .winnings {
+  background: rgba(46, 204, 113, 0.2);
+  color: #27ae60;
+  font-weight: bold;
+}
+
+/* 底牌 */
+.hole-cards {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.hole-card .card {
+  width: 35px;
+  height: 52px;
+  font-size: 12px;
+}
+
+/* 卡牌样式 */
+.card {
+  background: white;
+  border: 1px solid #333;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.card.red {
+  color: #e74c3c;
+}
+
+.card.black {
+  color: #2c3e50;
+}
+
+.card-display {
+  font-weight: bold;
+  line-height: 1;
+}
+
+.card-chinese {
+  font-size: 8px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* 玩家行动 */
+.player-actions {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(52, 152, 219, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid #3498db;
+}
+
+.player-actions h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.action-btn.fold {
+  background: #e74c3c;
+  color: white;
+}
+
+.action-btn.check {
+  background: #95a5a6;
+  color: white;
+}
+
+.action-btn.call {
+  background: #3498db;
+  color: white;
+}
+
+.action-btn.raise {
+  background: #f39c12;
+  color: white;
+}
+
+.action-btn.all_in {
+  background: #8e44ad;
+  color: white;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 加注输入 */
+.raise-input {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(243, 156, 18, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #f39c12;
+}
+
+.raise-input h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #f39c12;
+}
+
+.raise-input input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.raise-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.raise-buttons button {
+  flex: 1;
+  padding: 6px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.raise-buttons button:first-child {
+  background: #27ae60;
+  color: white;
+}
+
+.raise-buttons button:last-child {
+  background: #95a5a6;
+  color: white;
+}
+
+.raise-buttons button:hover {
+  transform: translateY(-1px);
+}
+
+.raise-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 游戏历史记录 */
+.game-history {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+}
+
+.game-history h3 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  text-align: center;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hand-number {
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.hand-summary {
+  color: #34495e;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.hand-pot {
+  color: #e67e22;
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.hand-winners {
+  font-size: 13px;
+  color: #27ae60;
+}
+
+.winner-info {
+  font-weight: bold;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .poker-table {
+    max-width: 700px;
+    height: 400px;
+  }
+  
+  .player-seat {
+    width: 200px;
+    min-height: 140px;
+    padding: 12px;
+  }
+  
+  .player-name {
+    font-size: 14px;
+  }
+  
+  .hole-card .card {
+    width: 30px;
+    height: 45px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-demo {
+    padding: 10px;
+  }
+  
+  .demo-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .game-stats {
+    gap: 15px;
+  }
+  
+  .poker-table {
+    max-width: 500px;
+    height: 300px;
+  }
+  
+  .player-seat {
+    width: 160px;
+    min-height: 120px;
+    padding: 8px;
+  }
+  
+  .player-stats {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    font-size: 10px;
+  }
+  
+  .action-buttons {
+    gap: 4px;
+  }
+  
+  .action-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    min-width: 50px;
+  }
+}
