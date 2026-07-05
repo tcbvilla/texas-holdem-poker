@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import DeckDemo from './components/DeckDemo';
-import GameDemo from './components/GameDemo';
-import RoomDemo from './components/RoomDemo';
 import Auth from './components/Auth';
 import ClubManagement from './components/ClubManagement';
 import RoomManagement from './components/RoomManagement';
+import PokerTable from './components/PokerTable';
+import { clearToken, getStoredUser } from './api';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
@@ -14,22 +13,19 @@ function App() {
   const [selectedRoomId, setSelectedRoomId] = useState(null);
 
   useEffect(() => {
-    // 检查用户是否已登录
-    const savedUser = localStorage.getItem('user');
+    const savedUser = getStoredUser();
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    // 检查是否有选中的俱乐部ID
-    if (window.selectedClubId) {
-      setSelectedClubId(window.selectedClubId);
-      setCurrentView('rooms');
-      // 清除全局变量
-      window.selectedClubId = null;
+      setUser(savedUser);
     }
   }, []);
 
+  const handleAuthSuccess = (loggedInUser) => {
+    setUser(loggedInUser);
+    setCurrentView('home');
+  };
+
   const handleLogout = () => {
+    clearToken();
     localStorage.removeItem('user');
     setUser(null);
     setCurrentView('home');
@@ -46,32 +42,32 @@ function App() {
   };
 
   const renderView = () => {
-    switch(currentView) {
+    switch (currentView) {
       case 'auth':
-        return <Auth />;
+        return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'clubs':
         return <ClubManagement onEnterClub={handleEnterClub} />;
       case 'rooms':
         return <RoomManagement clubId={selectedClubId} onEnterRoom={handleEnterRoom} />;
       case 'game':
-        return <GameDemo roomId={selectedRoomId} />;
-      case 'deck-demo':
-        return <DeckDemo />;
-      case 'game-demo':
-        return <GameDemo />;
-      case 'room-demo':
-        return <RoomDemo />;
+        return (
+          <PokerTable
+            roomId={selectedRoomId}
+            user={user}
+            onBack={() => setCurrentView('rooms')}
+          />
+        );
       default:
         return (
           <div className="home-view">
-            <h1>🃏 德州扑克系统</h1>
-            
+            <h1>德州扑克系统</h1>
+
             {!user ? (
               <div className="auth-section">
                 <h2>欢迎使用德州扑克系统</h2>
                 <p>请先登录或注册账号开始游戏</p>
                 <div className="auth-buttons">
-                  <button 
+                  <button
                     className="auth-btn"
                     onClick={() => setCurrentView('auth')}
                   >
@@ -86,13 +82,13 @@ function App() {
                   <p>邮箱：{user.email}</p>
                 </div>
                 <div className="user-actions">
-                  <button 
+                  <button
                     className="action-btn"
                     onClick={() => setCurrentView('clubs')}
                   >
-                    🏛️ 俱乐部管理
+                    俱乐部管理
                   </button>
-                  <button 
+                  <button
                     className="action-btn"
                     onClick={handleLogout}
                   >
@@ -109,7 +105,7 @@ function App() {
   return (
     <div className="App">
       <nav className="app-nav">
-        <button 
+        <button
           className={currentView === 'home' ? 'active' : ''}
           onClick={() => setCurrentView('home')}
         >
@@ -117,22 +113,25 @@ function App() {
         </button>
         {user && (
           <>
-            <button 
+            <button
               className={currentView === 'clubs' ? 'active' : ''}
               onClick={() => setCurrentView('clubs')}
             >
               俱乐部
             </button>
-            <button 
-              className={currentView === 'rooms' ? 'active' : ''}
-              onClick={() => setCurrentView('rooms')}
-            >
-              房间管理
-            </button>
+            {selectedClubId && (
+              <button
+                className={currentView === 'rooms' ? 'active' : ''}
+                onClick={() => setCurrentView('rooms')}
+              >
+                房间管理
+              </button>
+            )}
+            <span className="nav-user">{user.username}</span>
           </>
         )}
       </nav>
-      
+
       <main className="app-main">
         {renderView()}
       </main>

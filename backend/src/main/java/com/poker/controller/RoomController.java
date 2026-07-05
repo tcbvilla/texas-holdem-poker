@@ -1,6 +1,8 @@
 package com.poker.controller;
 
+import com.poker.auth.AuthService;
 import com.poker.dto.RoomDto;
+import com.poker.dto.RoomSettlementSnapshot;
 import com.poker.entity.Club;
 import com.poker.entity.Room;
 import com.poker.entity.User;
@@ -27,6 +29,8 @@ public class RoomController {
     
     private final RoomService roomService;
     private final ClubService clubService;
+    private final AuthService authService;
+    private final com.poker.game.service.GameTableService gameTableService;
     
     /**
      * 创建房间
@@ -205,7 +209,11 @@ public class RoomController {
         
         try {
             User currentUser = getCurrentUser();
+            if (gameTableService.isHandInProgress(roomId)) {
+                throw new IllegalStateException("Cannot end room while a hand is in progress");
+            }
             roomService.endRoom(roomId, currentUser);
+            gameTableService.closeTable(roomId);
             
             response.put("success", true);
             response.put("message", "房间游戏已结束");
@@ -229,7 +237,11 @@ public class RoomController {
         
         try {
             User currentUser = getCurrentUser();
+            if (gameTableService.isHandInProgress(roomId)) {
+                throw new IllegalStateException("Cannot cancel room while a hand is in progress");
+            }
             roomService.cancelRoom(roomId, currentUser);
+            gameTableService.closeTable(roomId);
             
             response.put("success", true);
             response.put("message", "房间已取消");
@@ -243,14 +255,56 @@ public class RoomController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * Get buy-in / cash-out settlement for the last closed table session.
+     */
+    @GetMapping("/{roomId}/settlement")
+    public ResponseEntity<Map<String, Object>> getSettlement(@PathVariable Long roomId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            RoomSettlementSnapshot snapshot = roomService.getSettlement(roomId);
+            if (snapshot == null) {
+                response.put("success", false);
+                response.put("message", "No settlement data for this room");
+                return ResponseEntity.badRequest().body(response);
+            }
+            response.put("success", true);
+            response.put("data", snapshot);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to get room settlement", e);
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Restart a closed room: reset status and clear settlement snapshot.
+     */
+    @PostMapping("/{roomId}/restart")
+    public ResponseEntity<Map<String, Object>> restartRoom(@PathVariable Long roomId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            User currentUser = getCurrentUser();
+            gameTableService.discardTable(roomId);
+            roomService.restartRoom(roomId, currentUser);
+            Room room = roomService.getRoomById(roomId);
+            response.put("success", true);
+            response.put("message", "房间已重新开始");
+            response.put("data", convertToDto(room));
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to restart room", e);
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
     
-    // TODO: 临时实现，后续需要集成认证系统
     private User getCurrentUser() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("testuser");
-        user.setEmail("test@example.com");
-        return user;
+        return authService.getCurrentUser();
     }
     
     /**
@@ -335,6 +389,9 @@ public class RoomController {
         if (room.getCreatedBy() != null) {
             dto.setCreatedByName(room.getCreatedBy().getUsername());
         }
+
+        String snapshot = room.getSettlementSnapshot();
+        dto.setHasSettlement(snapshot != null && !snapshot.isBlank());
         
         return dto;
     }

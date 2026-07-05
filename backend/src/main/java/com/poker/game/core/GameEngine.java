@@ -28,6 +28,9 @@ public class GameEngine {
     private PotManager.PotStructure potStructure;
     private PotManager.SettlementResult settlementResult;
 
+    // 摊牌信息：只有真正进行了摊牌比牌时才有值（弃牌获胜时为null，用于前端决定是否亮牌）
+    private Map<Integer, HandRank> showdownHands;
+
     public GameEngine(PotManager potManager, HandEvaluator handEvaluator) {
         this.potManager = potManager;
         this.handEvaluator = handEvaluator;
@@ -186,20 +189,37 @@ public class GameEngine {
     private int smallBlindAmount;
     private int bigBlindAmount;
 
+    /** Minimum raise increment for the current betting round (starts at big blind). */
+    private BigDecimal lastRaiseIncrement;
+
+    /** Physical seat index per player id (set by GameTable before showdown). */
+    private Map<Integer, Integer> playerSeatPositions = new HashMap<>();
+
+    /** Physical seat index of the button (set by GameTable before showdown). */
+    private int buttonSeatIndex = 0;
+
     /**
      * 初始化新游戏
      */
     public void initializeGame(String gameId, List<Player> players, int smallBlind, int bigBlind) {
+        initializeGame(gameId, players, smallBlind, bigBlind, 0);
+    }
+
+    /**
+     * 初始化新游戏（指定按钮位置）
+     */
+    public void initializeGame(String gameId, List<Player> players, int smallBlind, int bigBlind, int buttonPosition) {
         this.gameId = gameId;
         this.players = new ArrayList<>(players);
         this.communityCards = new ArrayList<>();
         this.deck = new Deck();
         this.currentBet = BigDecimal.ZERO;
         this.totalPot = BigDecimal.ZERO;
-        this.buttonPosition = 0;
+        this.buttonPosition = buttonPosition % Math.max(players.size(), 1);
         this.currentPlayerIndex = 0;
         this.smallBlindAmount = smallBlind;
         this.bigBlindAmount = bigBlind;
+        this.lastRaiseIncrement = BigDecimal.valueOf(bigBlind);
         this.currentState = GameState.WAITING_FOR_PLAYERS;
 
         log.info("游戏初始化完成，游戏ID：{}，玩家数：{}，盲注：{}/{}", 
@@ -228,6 +248,7 @@ public class GameEngine {
         // 清理结算数据
         potStructure = null;
         settlementResult = null;
+        showdownHands = null;
 
         // 重置玩家状态
         for (Player player : players) {
@@ -255,9 +276,10 @@ public class GameEngine {
 
         // 收取盲注
         collectBlinds();
+        lastRaiseIncrement = BigDecimal.valueOf(bigBlindAmount);
 
         // 设置第一个行动玩家（大盲注后的第一个玩家）
-        currentPlayerIndex = getNextActivePlayer((buttonPosition + 3) % players.size());
+        currentPlayerIndex = getNextActivePlayer((getBigBlindPos() + 1) % players.size());
 
         log.info("新一手牌开始，按钮位置：{}，当前行动玩家：{}", buttonPosition, currentPlayerIndex);
     }
@@ -279,11 +301,32 @@ public class GameEngine {
     }
 
     /**
+     * 获取小盲注位置
+     * 两人单挑时按钮位即小盲注
+     */
+    private int getSmallBlindPos() {
+        if (players.size() == 2) {
+            return buttonPosition;
+        }
+        return (buttonPosition + 1) % players.size();
+    }
+
+    /**
+     * 获取大盲注位置
+     */
+    private int getBigBlindPos() {
+        if (players.size() == 2) {
+            return (buttonPosition + 1) % players.size();
+        }
+        return (buttonPosition + 2) % players.size();
+    }
+
+    /**
      * 收取盲注
      */
     private void collectBlinds() {
-        int smallBlindPos = (buttonPosition + 1) % players.size();
-        int bigBlindPos = (buttonPosition + 2) % players.size();
+        int smallBlindPos = getSmallBlindPos();
+        int bigBlindPos = getBigBlindPos();
 
         Player smallBlindPlayer = players.get(smallBlindPos);
         Player bigBlindPlayer = players.get(bigBlindPos);
@@ -339,12 +382,14 @@ public class GameEngine {
             case CALL:
                 BigDecimal callAmount = currentBet.subtract(currentPlayer.betAmount);
                 if (callAmount.compareTo(BigDecimal.ZERO) <= 0) {
-                    log.warn("玩家{}无需跟注", currentPlayer.getName());
+                    log.warn("Player {} has nothing to call", currentPlayer.getName());
                     return false;
                 }
+                // 筹码不足时按全下处理，实际投入以持有筹码为上限
+                BigDecimal actualCall = callAmount.min(currentPlayer.chips);
                 currentPlayer.bet(callAmount);
-                totalPot = totalPot.add(callAmount);
-                log.info("玩家{}跟注{}", currentPlayer.getName(), callAmount);
+                totalPot = totalPot.add(actualCall);
+                log.info("Player {} calls {}", currentPlayer.getName(), actualCall);
                 break;
                 
             case RAISE:
@@ -352,61 +397,48 @@ public class GameEngine {
                     log.warn("玩家{}加注金额为空", currentPlayer.getName());
                     return false;
                 }
-                
-                // 计算最小加注额（当前下注额 + 大盲注）
-                BigDecimal minRaise = currentBet.add(BigDecimal.valueOf(bigBlindAmount));
-                if (amount.compareTo(minRaise) < 0) {
-                    log.warn("玩家{}加注金额太小：{}，最小加注额为{}", 
-                            currentPlayer.getName(), amount, minRaise);
+
+                BigDecimal betBeforeRaise = currentBet;
+                BigDecimal minRaiseTo = getMinRaiseTo();
+                if (amount.compareTo(minRaiseTo) < 0) {
+                    log.warn("Player {} raise too small: {} min {}", currentPlayer.getName(), amount, minRaiseTo);
                     return false;
                 }
-                
-                // 检查玩家是否有足够筹码
+
                 BigDecimal raiseAmount = amount.subtract(currentPlayer.betAmount);
                 if (raiseAmount.compareTo(currentPlayer.chips) > 0) {
-                    log.warn("玩家{}筹码不足：需要{}，拥有{}", 
+                    log.warn("玩家{}筹码不足：需要{}，拥有{}",
                             currentPlayer.getName(), raiseAmount, currentPlayer.chips);
                     return false;
                 }
-                
+
                 currentPlayer.bet(raiseAmount);
                 totalPot = totalPot.add(raiseAmount);
                 currentBet = amount;
-                
-                // 重置其他玩家的行动状态
-                for (Player player : players) {
-                    if (player != currentPlayer && player.isActive && !player.isAllIn) {
-                        player.hasActed = false;
-                    }
-                }
-                
+                applyRaiseReopen(currentPlayer, betBeforeRaise, amount);
                 log.info("玩家{}加注到{}", currentPlayer.getName(), amount);
                 break;
-                
+
             case ALL_IN:
                 if (currentPlayer.chips.compareTo(BigDecimal.ZERO) <= 0) {
                     log.warn("玩家{}筹码为0，无法全下", currentPlayer.getName());
                     return false;
                 }
-                
-                BigDecimal allInAmount = currentPlayer.chips.add(currentPlayer.betAmount);
+
+                BigDecimal betBeforeAllIn = currentBet;
+                BigDecimal allInContribution = currentPlayer.chips;
                 currentPlayer.bet(currentPlayer.chips);
-                totalPot = totalPot.add(currentPlayer.chips);
-                
-                // 全下玩家标记为已行动（相当于执行了一次过牌）
+                totalPot = totalPot.add(allInContribution);
+
+                BigDecimal allInTotal = currentPlayer.getBetAmount();
                 currentPlayer.hasActed = true;
-                
-                if (allInAmount.compareTo(currentBet) > 0) {
-                    currentBet = allInAmount;
-                    // 重置其他玩家的行动状态
-                    for (Player player : players) {
-                        if (player != currentPlayer && player.isActive && !player.isAllIn) {
-                            player.hasActed = false;
-                        }
-                    }
+
+                if (allInTotal.compareTo(currentBet) > 0) {
+                    currentBet = allInTotal;
+                    applyRaiseReopen(currentPlayer, betBeforeAllIn, allInTotal);
                 }
-                
-                log.info("玩家{}全下{}", currentPlayer.getName(), allInAmount);
+
+                log.info("玩家{}全下{}", currentPlayer.getName(), allInTotal);
                 break;
         }
 
@@ -417,23 +449,28 @@ public class GameEngine {
             if (activePlayers.size() == 1) {
                 // 只剩一个玩家，游戏结束，该玩家获胜
                 Player winner = activePlayers.get(0);
-                winner.addChips(totalPot);
+                // 底池以所有玩家累计下注求和为准，避免增量统计误差
+                BigDecimal potAmount = players.stream()
+                        .map(Player::getTotalBet)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                totalPot = potAmount;
+                winner.addChips(potAmount);
                 currentState = GameState.FINISHED;
                 currentPlayerIndex = -1;
                 
                 // 创建结算信息，让前端能显示获胜结果
-                createSingleWinnerSettlement(winner, totalPot);
+                createSingleWinnerSettlement(winner, potAmount);
                 
-                log.info("游戏结束：玩家{}获胜，获得底池{}", winner.getName(), totalPot);
+                log.info("Game finished: player {} wins pot {}", winner.getName(), potAmount);
             } else {
                 // 检查是否只剩全下玩家，如果是则自动执行到摊牌
                 List<Player> nonAllInPlayers = activePlayers.stream()
                         .filter(p -> !p.isAllIn)
                         .collect(Collectors.toList());
                 
-                if (nonAllInPlayers.isEmpty()) {
-                    // 所有活跃玩家都全下了，自动执行到摊牌
-                    log.info("所有玩家都全下，自动执行到摊牌");
+                if (nonAllInPlayers.size() <= 1) {
+                    // 至多一个玩家还有筹码可行动，后续下注轮无意义，自动执行到摊牌
+                    log.info("All remaining players are all-in (or only one can act), running out the board");
                     advanceToShowdown();
                 } else {
                     advanceToNextState();
@@ -445,7 +482,7 @@ public class GameEngine {
             
             // 翻牌前特殊处理：如果所有人都行动完了，但大盲注还没有额外行动，轮到大盲注
             if (currentState == GameState.PRE_FLOP && currentPlayerIndex == -1) {
-                int bigBlindPos = (buttonPosition + 2) % players.size();
+                int bigBlindPos = getBigBlindPos();
                 Player bigBlindPlayer = players.get(bigBlindPos);
                 
                 if (bigBlindPlayer.isActive && !bigBlindPlayer.isAllIn && 
@@ -497,7 +534,7 @@ public class GameEngine {
         // 翻牌前特殊处理：如果大盲注玩家还没有在当前下注轮中行动过（除了强制盲注），
         // 且所有人都跟注到大盲注，大盲注玩家应该有行动机会
         if (currentState == GameState.PRE_FLOP) {
-            int bigBlindPos = (buttonPosition + 2) % players.size();
+            int bigBlindPos = getBigBlindPos();
             Player bigBlindPlayer = players.get(bigBlindPos);
             
             // 如果大盲注玩家还活跃且没有在翻牌前额外行动过
@@ -531,6 +568,7 @@ public class GameEngine {
         
         // 重置当前下注额（新的下注轮从0开始）
         currentBet = BigDecimal.ZERO;
+        lastRaiseIncrement = BigDecimal.valueOf(bigBlindAmount);
 
         switch (currentState) {
             case PRE_FLOP:
@@ -616,7 +654,7 @@ public class GameEngine {
                         player.getName(),
                         player.getTotalBet(),
                         player.isHasFolded(),
-                        players.indexOf(player) // 使用索引作为座位位置
+                        playerSeatPositions.getOrDefault(player.getId(), players.indexOf(player))
                 ))
                 .collect(Collectors.toList());
 
@@ -627,18 +665,22 @@ public class GameEngine {
         // 评估所有活跃玩家的牌型
         Map<Integer, HandRank> playerHands = new HashMap<>();
         for (Player player : players) {
-            if (!player.isHasFolded()) {
+            if (!player.isHasFolded() && player.getHoleCards().size() == 2) {
                 List<Card> allCards = new ArrayList<>(player.getHoleCards());
                 allCards.addAll(communityCards);
                 HandRank handRank = handEvaluator.evaluateHand(allCards);
                 playerHands.put(player.getId(), handRank);
                 
-                log.debug("玩家{}牌型：{}", player.getName(), handRank.getHandType().getChineseName());
+                log.debug("Player {} hand: {}", player.getName(), handRank.getHandType().getChineseName());
             }
         }
+        showdownHands = playerHands;
 
         // 结算底池
-        settlementResult = potManager.settlePots(potStructure, playerHands);
+        Map<Integer, String> playerNames = players.stream()
+                .collect(Collectors.toMap(Player::getId, Player::getName, (a, b) -> a));
+        settlementResult = potManager.settlePots(potStructure, playerHands, playerNames,
+                playerSeatPositions, buttonSeatIndex);
         
         // 更新总底池金额
         totalPot = potStructure.getTotalAmount();
@@ -809,5 +851,62 @@ public class GameEngine {
     public void moveButton() {
         buttonPosition = (buttonPosition + 1) % players.size();
         log.info("按钮位置移动到玩家：{}", players.get(buttonPosition).getName());
+    }
+
+    /**
+     * Minimum legal total bet/raise-to amount for the current betting round.
+     */
+    public BigDecimal getMinRaiseTo() {
+        if (currentBet.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.valueOf(bigBlindAmount);
+        }
+        return currentBet.add(lastRaiseIncrement);
+    }
+
+    /**
+     * Provide physical seat context for pot odd-chip distribution and settlement labels.
+     */
+    public void setSeatContext(Map<Integer, Integer> seatPositions, int physicalButtonSeat) {
+        this.playerSeatPositions = new HashMap<>(seatPositions);
+        this.buttonSeatIndex = physicalButtonSeat;
+    }
+
+    /**
+     * When action timer expires: check if possible, otherwise fold.
+     */
+    public boolean forceAutoAction(int playerId) {
+        if (currentPlayerIndex < 0 || currentPlayerIndex >= players.size()) {
+            return false;
+        }
+        Player current = players.get(currentPlayerIndex);
+        if (current.getId() != playerId) {
+            return false;
+        }
+        if (currentBet.compareTo(current.getBetAmount()) == 0) {
+            return processPlayerAction(playerId, PlayerAction.CHECK, null);
+        }
+        return processPlayerAction(playerId, PlayerAction.FOLD, null);
+    }
+
+    /**
+     * Force a player to fold (used when leaving mid-hand on their turn).
+     */
+    public boolean forceFold(int playerId) {
+        return processPlayerAction(playerId, PlayerAction.FOLD, null);
+    }
+
+    /**
+     * Reopen betting only when the raise increment meets the minimum raise size.
+     */
+    private void applyRaiseReopen(Player raiser, BigDecimal betBeforeRaise, BigDecimal newBetLevel) {
+        BigDecimal increment = newBetLevel.subtract(betBeforeRaise);
+        if (increment.compareTo(lastRaiseIncrement) >= 0) {
+            lastRaiseIncrement = increment;
+            for (Player player : players) {
+                if (player != raiser && player.isActive && !player.isAllIn) {
+                    player.hasActed = false;
+                }
+            }
+        }
     }
 }

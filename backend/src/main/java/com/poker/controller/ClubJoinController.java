@@ -1,5 +1,6 @@
 package com.poker.controller;
 
+import com.poker.auth.AuthService;
 import com.poker.entity.Club;
 import com.poker.entity.ClubMember;
 import com.poker.entity.User;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class ClubJoinController {
     
     private final ClubService clubService;
+    private final AuthService authService;
     
     /**
      * 申请加入俱乐部
@@ -118,12 +120,7 @@ public class ClubJoinController {
         }
     }
     
-    // TODO: 临时实现，后续需要集成认证系统
     private User getCurrentUser() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("testuser");
-        user.setEmail("test@example.com");
-        return user;
+        return authService.getCurrentUser();
     }
 }

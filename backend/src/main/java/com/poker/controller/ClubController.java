@@ -1,5 +1,6 @@
 package com.poker.controller;
 
+import com.poker.auth.AuthService;
 import com.poker.entity.Club;
 import com.poker.entity.ClubMember;
 import com.poker.entity.User;
@@ -25,6 +26,7 @@ public class ClubController {
     
     private final ClubService clubService;
     private final UserService userService;
+    private final AuthService authService;
     
     /**
      * 创建俱乐部
@@ -34,8 +36,7 @@ public class ClubController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // TODO: 从认证信息中获取当前用户
-            User currentUser = getCurrentUser(); // 临时实现
+            User currentUser = getCurrentUser();
             
             Club club = clubService.createClub(
                     request.getName(),
@@ -138,7 +139,7 @@ public class ClubController {
         
         try {
             User currentUser = getCurrentUser();
-            User targetUser = getUserById(request.getUserId()); // TODO: 实现用户查找
+            User targetUser = userService.getUserById(request.getUserId());
             
             ClubMember member = clubService.inviteMember(clubId, targetUser, currentUser);
             
@@ -228,20 +229,8 @@ public class ClubController {
         }
     }
     
-    // TODO: 临时实现，后续需要集成认证系统
     private User getCurrentUser() {
-        // 临时返回第一个用户，后续需要从认证信息中获取
-        return userService.getAllUsers().stream()
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("没有找到用户，请先注册"));
-    }
-    
-    private User getUserById(Long userId) {
-        User user = new User();
-        user.setId(userId);
-        user.setUsername("user" + userId);
-        user.setEmail("user" + userId + "@example.com");
-        return user;
+        return authService.getCurrentUser();
     }
     
     /**

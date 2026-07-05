@@ -195,54 +195,61 @@ public class PotManager {
      * @return 结算结果
      */
     public SettlementResult settlePots(PotStructure potStructure, Map<Integer, HandRank> playerHands) {
-        log.info("开始结算底池，底池数量：{}", potStructure.getPots().size());
+        return settlePots(potStructure, playerHands, Collections.emptyMap(), Collections.emptyMap(), 0);
+    }
+
+    /**
+     * 结算底池（含玩家名与座位信息，用于摘要与零头分配）
+     */
+    public SettlementResult settlePots(PotStructure potStructure, Map<Integer, HandRank> playerHands,
+                                       Map<Integer, String> playerNames,
+                                       Map<Integer, Integer> playerSeatPositions,
+                                       int buttonSeatIndex) {
+        log.info("Starting pot settlement, pot count: {}", potStructure.getPots().size());
 
         List<Pot> settledPots = new ArrayList<>();
         Map<Integer, BigDecimal> totalPlayerWinnings = new HashMap<>();
         BigDecimal totalDistributed = BigDecimal.ZERO;
         List<String> summaryParts = new ArrayList<>();
 
-        // 按顺序结算每个底池
+        int maxSeat = playerSeatPositions.values().stream().mapToInt(Integer::intValue).max().orElse(9) + 1;
+
         for (Pot pot : potStructure.getPots()) {
             if (pot.getEligiblePlayerIds().isEmpty()) {
-                log.warn("{}没有有资格的玩家，跳过", pot.getDescription());
+                log.warn("{} has no eligible players, skipping", pot.getDescription());
                 continue;
             }
 
-            // 找出此底池的获胜者
             List<Integer> winners = findPotWinners(pot.getEligiblePlayerIds(), playerHands);
-            
+
             if (winners.isEmpty()) {
-                log.warn("{}没有找到获胜者，跳过", pot.getDescription());
+                log.warn("{} has no winners, skipping", pot.getDescription());
                 continue;
             }
 
-            // 分配底池金额
-            Map<Integer, BigDecimal> potWinnings = distributePotAmount(pot.getAmount(), winners, potStructure.getPlayerContributions());
-            
-            // 更新底池信息
+            Map<Integer, BigDecimal> potWinnings = distributePotAmount(
+                    pot.getAmount(), winners, playerSeatPositions, buttonSeatIndex, maxSeat);
+
             pot.setWinners(winners);
             pot.setWinnings(potWinnings);
             settledPots.add(pot);
 
-            // 累计玩家总获胜金额
             for (Map.Entry<Integer, BigDecimal> entry : potWinnings.entrySet()) {
                 totalPlayerWinnings.merge(entry.getKey(), entry.getValue(), BigDecimal::add);
                 totalDistributed = totalDistributed.add(entry.getValue());
             }
 
-            // 生成摘要
             String winnerNames = winners.stream()
-                    .map(id -> "玩家" + id)
+                    .map(id -> playerNames.getOrDefault(id, "Player" + id))
                     .collect(Collectors.joining(", "));
-            summaryParts.add(String.format("%s(%s)由%s获得", pot.getDescription(), pot.getAmount(), winnerNames));
+            summaryParts.add(String.format("%s(%s) won by %s", pot.getDescription(), pot.getAmount(), winnerNames));
 
-            log.info("{}结算完成：获胜者={}，分配金额={}", pot.getDescription(), winners, potWinnings);
+            log.info("Pot settled: {} winners={} winnings={}", pot.getDescription(), winners, potWinnings);
         }
 
-        String summary = summaryParts.isEmpty() ? "无底池需要结算" : String.join("；", summaryParts);
-        
-        log.info("底池结算完成：总分配金额={}，获胜玩家数={}", totalDistributed, totalPlayerWinnings.size());
+        String summary = summaryParts.isEmpty() ? "No pots to settle" : String.join("; ", summaryParts);
+
+        log.info("Pot settlement complete: total={} winnerCount={}", totalDistributed, totalPlayerWinnings.size());
         return new SettlementResult(settledPots, totalPlayerWinnings, totalDistributed, summary);
     }
 
@@ -288,35 +295,35 @@ public class PotManager {
     /**
      * 分配底池金额
      */
-    private Map<Integer, BigDecimal> distributePotAmount(BigDecimal potAmount, List<Integer> winners, 
-                                                        Map<Integer, BigDecimal> playerContributions) {
+    private Map<Integer, BigDecimal> distributePotAmount(BigDecimal potAmount, List<Integer> winners,
+                                                         Map<Integer, Integer> playerSeatPositions,
+                                                         int buttonSeatIndex, int maxSeat) {
         Map<Integer, BigDecimal> winnings = new HashMap<>();
-        
+
         if (winners.isEmpty()) {
             return winnings;
         }
 
-        // 计算每人应得的基础金额
         BigDecimal baseAmount = potAmount.divide(BigDecimal.valueOf(winners.size()), 0, RoundingMode.DOWN);
         BigDecimal remainder = potAmount.remainder(BigDecimal.valueOf(winners.size()));
 
-        // 按座位位置排序（用于分配多余筹码）
+        // Odd chips go to the winner closest to the left of the button (smallest clockwise distance).
         List<Integer> sortedWinners = new ArrayList<>(winners);
-        sortedWinners.sort(Integer::compareTo); // 简化：按玩家ID排序，实际应该按座位位置
+        sortedWinners.sort(Comparator.comparingInt(id -> {
+            int seat = playerSeatPositions.getOrDefault(id, id);
+            return (seat - buttonSeatIndex + maxSeat) % maxSeat;
+        }));
 
-        // 分配基础金额
         for (Integer winnerId : sortedWinners) {
             winnings.put(winnerId, baseAmount);
         }
 
-        // 分配多余筹码给位置靠前的玩家
         for (int i = 0; i < remainder.intValue(); i++) {
             Integer winnerId = sortedWinners.get(i);
             winnings.put(winnerId, winnings.get(winnerId).add(BigDecimal.ONE));
         }
 
-        log.debug("底池分配：总金额={}，基础金额={}，多余筹码={}，分配结果={}", 
-                 potAmount, baseAmount, remainder, winnings);
+        log.debug("Pot split: total={} base={} remainder={} result={}", potAmount, baseAmount, remainder, winnings);
 
         return winnings;
     }

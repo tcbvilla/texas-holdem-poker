@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './Auth.css';
+import { apiPost, setToken } from '../api';
 
-const Auth = () => {
+const Auth = ({ onAuthSuccess }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
         username: '',
@@ -49,24 +50,16 @@ const Auth = () => {
                 ? { identifier: formData.username, password: formData.password }
                 : { username: formData.username, email: formData.email, password: formData.password };
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            const data = await response.json();
+            const data = await apiPost(endpoint, requestData);
 
             if (data.success) {
                 setSuccess(isLogin ? '登录成功！' : '注册成功！');
-                // 保存用户信息到localStorage
+                // 保存 token 和用户信息
+                setToken(data.data.token);
                 localStorage.setItem('user', JSON.stringify(data.data));
-                // 延迟跳转到主页面
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
+                if (onAuthSuccess) {
+                    setTimeout(() => onAuthSuccess(data.data), 600);
+                }
             } else {
                 setError(data.message || '操作失败');
             }

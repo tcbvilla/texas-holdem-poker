@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -79,7 +81,12 @@ public class Room {
     
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
-    
+
+    /** JSON snapshot of per-player buy-in / remaining chips when the table closes. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "settlement_snapshot", columnDefinition = "JSONB")
+    private String settlementSnapshot;
+
     // 注意：房间玩家信息存储在内存中，不持久化到数据库
     
     /**

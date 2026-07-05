@@ -1,5 +1,7 @@
 package com.poker.controller;
 
+import com.poker.auth.AuthService;
+import com.poker.auth.TokenService;
 import com.poker.entity.User;
 import com.poker.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,8 @@ import java.util.Map;
 public class AuthController {
     
     private final UserService userService;
+    private final TokenService tokenService;
+    private final AuthService authService;
     
     /**
      * 用户注册
@@ -35,9 +39,14 @@ public class AuthController {
                     request.getPassword()
             );
             
+            String token = tokenService.issueToken(user.getId());
+            
+            Map<String, Object> data = createUserResponse(user);
+            data.put("token", token);
+            
             response.put("success", true);
             response.put("message", "注册成功");
-            response.put("data", createUserResponse(user));
+            response.put("data", data);
             
             return ResponseEntity.ok(response);
             
@@ -62,9 +71,14 @@ public class AuthController {
                     request.getPassword()
             );
             
+            String token = tokenService.issueToken(user.getId());
+            
+            Map<String, Object> data = createUserResponse(user);
+            data.put("token", token);
+            
             response.put("success", true);
             response.put("message", "登录成功");
-            response.put("data", createUserResponse(user));
+            response.put("data", data);
             
             return ResponseEntity.ok(response);
             
@@ -84,9 +98,7 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // TODO: 从认证信息中获取当前用户ID
-            Long currentUserId = getCurrentUserId();
-            User user = userService.getUserById(currentUserId);
+            User user = authService.getCurrentUser();
             
             response.put("success", true);
             response.put("data", createUserResponse(user));
@@ -109,7 +121,7 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            Long currentUserId = getCurrentUserId();
+            Long currentUserId = authService.getCurrentUser().getId();
             User user = userService.updateUser(
                     currentUserId,
                     request.getUsername(),
@@ -139,7 +151,7 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            Long currentUserId = getCurrentUserId();
+            Long currentUserId = authService.getCurrentUser().getId();
             userService.changePassword(
                     currentUserId,
                     request.getOldPassword(),
@@ -219,11 +231,6 @@ public class AuthController {
         userResponse.put("createdAt", user.getCreatedAt());
         userResponse.put("updatedAt", user.getUpdatedAt());
         return userResponse;
-    }
-    
-    // TODO: 临时实现，后续需要集成认证系统
-    private Long getCurrentUserId() {
-        return 1L; // 临时返回固定用户ID
     }
     
     /**

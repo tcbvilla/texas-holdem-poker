@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ClubManagement.css';
+import { apiGet, apiPost } from '../api';
 
 const ClubManagement = ({ onEnterClub }) => {
     const [clubs, setClubs] = useState([]);
@@ -21,26 +22,16 @@ const ClubManagement = ({ onEnterClub }) => {
     }, []);
 
     const fetchClubs = async () => {
-        try {
-            const response = await fetch('/api/public/clubs');
-            const data = await response.json();
-            if (data.success) {
-                setClubs(data.data);
-            }
-        } catch (err) {
-            console.error('获取俱乐部列表失败:', err);
+        const data = await apiGet('/api/public/clubs');
+        if (data.success) {
+            setClubs(data.data);
         }
     };
 
     const fetchMyClubs = async () => {
-        try {
-            const response = await fetch('/api/clubs/my-joined');
-            const data = await response.json();
-            if (data.success) {
-                setMyClubs(data.data);
-            }
-        } catch (err) {
-            console.error('获取我的俱乐部失败:', err);
+        const data = await apiGet('/api/clubs/my-joined');
+        if (data.success) {
+            setMyClubs(data.data);
         }
     };
 
@@ -51,15 +42,7 @@ const ClubManagement = ({ onEnterClub }) => {
         setSuccess('');
 
         try {
-            const response = await fetch('/api/clubs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(createForm)
-            });
-
-            const data = await response.json();
+            const data = await apiPost('/api/clubs', createForm);
 
             if (data.success) {
                 setSuccess('俱乐部创建成功！');
@@ -83,14 +66,7 @@ const ClubManagement = ({ onEnterClub }) => {
         setSuccess('');
 
         try {
-            const response = await fetch(`/api/club-join/${clubId}/apply`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            const data = await response.json();
+            const data = await apiPost(`/api/club-join/${clubId}/apply`);
 
             if (data.success) {
                 setSuccess('成功加入俱乐部！');
@@ -115,14 +91,7 @@ const ClubManagement = ({ onEnterClub }) => {
         setSuccess('');
 
         try {
-            const response = await fetch(`/api/club-join/${clubId}/leave`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            const data = await response.json();
+            const data = await apiPost(`/api/club-join/${clubId}/leave`);
 
             if (data.success) {
                 setSuccess('成功退出俱乐部！');

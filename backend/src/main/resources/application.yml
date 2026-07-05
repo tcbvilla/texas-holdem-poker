@@ -3,8 +3,8 @@ spring:
     name: poker-system
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/poker_db
-    username: chenbotang
+    url: jdbc:postgresql://127.0.0.1:5432/poker_db
+    username: chenbo
     password: 
     driver-class-name: org.postgresql.Driver
   

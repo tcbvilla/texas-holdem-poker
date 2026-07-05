@@ -1,5 +1,8 @@
 package com.poker.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.poker.dto.RoomSettlementSnapshot;
 import com.poker.entity.Club;
 import com.poker.entity.Room;
 import com.poker.entity.User;
@@ -23,6 +26,7 @@ import java.util.List;
 public class RoomServiceImpl implements RoomService {
     
     private final RoomRepository roomRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final SecureRandom secureRandom = new SecureRandom();
     
     @Override
@@ -157,6 +161,89 @@ public class RoomServiceImpl implements RoomService {
         roomRepository.save(room);
         
         log.info("房间已取消: roomId={}, roomCode={}", roomId, room.getRoomCode());
+    }
+
+    @Override
+    public void markRoomRunning(Long roomId) {
+        Room room = getRoomById(roomId);
+        if (room.getStatus() == Room.RoomStatus.WAITING) {
+            room.setStatus(Room.RoomStatus.RUNNING);
+            room.setStartedAt(java.time.LocalDateTime.now());
+            roomRepository.save(room);
+            log.info("Room marked running on first hand: roomId={}", roomId);
+        }
+    }
+
+    @Override
+    public void autoCancelRoom(Long roomId) {
+        Room room = getRoomById(roomId);
+        if (room.getStatus() != Room.RoomStatus.FINISHED
+                && room.getStatus() != Room.RoomStatus.CANCELLED) {
+            room.setStatus(Room.RoomStatus.CANCELLED);
+            room.setEndedAt(java.time.LocalDateTime.now());
+            roomRepository.save(room);
+            log.info("Room auto-cancelled (empty table): roomId={}", roomId);
+        }
+    }
+
+    @Override
+    public void autoEndRoom(Long roomId) {
+        Room room = getRoomById(roomId);
+        if (room.getStatus() == Room.RoomStatus.RUNNING) {
+            room.setStatus(Room.RoomStatus.FINISHED);
+            room.setEndedAt(java.time.LocalDateTime.now());
+            roomRepository.save(room);
+            log.info("Room auto-ended (duration expired): roomId={}", roomId);
+        }
+    }
+
+    @Override
+    public void saveSettlement(Long roomId, RoomSettlementSnapshot snapshot) {
+        if (snapshot == null || snapshot.getPlayers() == null || snapshot.getPlayers().isEmpty()) {
+            return;
+        }
+        Room room = getRoomById(roomId);
+        try {
+            room.setSettlementSnapshot(objectMapper.writeValueAsString(snapshot));
+            roomRepository.save(room);
+            log.info("Saved settlement snapshot for room {} with {} players", roomId, snapshot.getPlayers().size());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize settlement snapshot", e);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RoomSettlementSnapshot getSettlement(Long roomId) {
+        Room room = getRoomById(roomId);
+        String json = room.getSettlementSnapshot();
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, RoomSettlementSnapshot.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse settlement snapshot", e);
+        }
+    }
+
+    @Override
+    public void restartRoom(Long roomId, User operator) {
+        log.info("Restarting room: roomId={}, operator={}", roomId, operator.getUsername());
+        Room room = getRoomById(roomId);
+        if (!canOperateRoom(room, operator)) {
+            throw new IllegalArgumentException("没有权限操作此房间");
+        }
+        if (room.getStatus() != Room.RoomStatus.FINISHED
+                && room.getStatus() != Room.RoomStatus.CANCELLED) {
+            throw new IllegalArgumentException("只有已关闭的房间才能重新开始");
+        }
+        room.setStatus(Room.RoomStatus.WAITING);
+        room.setStartedAt(null);
+        room.setEndedAt(null);
+        room.setSettlementSnapshot(null);
+        roomRepository.save(room);
+        log.info("Room restarted: roomId={}, roomCode={}", roomId, room.getRoomCode());
     }
     
     @Override

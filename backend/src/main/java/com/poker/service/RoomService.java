@@ -53,6 +53,36 @@ public interface RoomService {
      * 取消房间
      */
     void cancelRoom(Long roomId, User operator);
+
+    /**
+     * Mark room as running when the first hand starts (no permission check).
+     */
+    void markRoomRunning(Long roomId);
+
+    /**
+     * Auto-cancel room when the table becomes empty (no permission check).
+     */
+    void autoCancelRoom(Long roomId);
+
+    /**
+     * Auto-end room when duration expires (no permission check).
+     */
+    void autoEndRoom(Long roomId);
+
+    /**
+     * Persist settlement snapshot JSON when a table session closes.
+     */
+    void saveSettlement(Long roomId, com.poker.dto.RoomSettlementSnapshot snapshot);
+
+    /**
+     * Load settlement snapshot for a closed room session.
+     */
+    com.poker.dto.RoomSettlementSnapshot getSettlement(Long roomId);
+
+    /**
+     * Reset a closed room to WAITING and clear settlement snapshot.
+     */
+    void restartRoom(Long roomId, User operator);
     
     /**
      * 检查用户是否有权限操作房间

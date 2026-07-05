@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './RoomManagement.css';
+import { apiGet, apiPost } from '../api';
 
 const RoomManagement = ({ clubId, onEnterRoom }) => {
     const [rooms, setRooms] = useState([]);
@@ -7,6 +8,9 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [settlementRoom, setSettlementRoom] = useState(null);
+    const [settlementData, setSettlementData] = useState(null);
+    const [settlementLoading, setSettlementLoading] = useState(false);
 
     const [createForm, setCreateForm] = useState({
         name: '',
@@ -28,14 +32,9 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
     }, [clubId]);
 
     const fetchRooms = async () => {
-        try {
-            const response = await fetch(`/api/rooms/club/${clubId}`);
-            const data = await response.json();
-            if (data.success) {
-                setRooms(data.data);
-            }
-        } catch (err) {
-            console.error('获取房间列表失败:', err);
+        const data = await apiGet(`/api/rooms/club/${clubId}`);
+        if (data.success) {
+            setRooms(data.data);
         }
     };
 
@@ -46,18 +45,7 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
         setSuccess('');
 
         try {
-            const response = await fetch('/api/rooms', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...createForm,
-                    clubId: clubId
-                })
-            });
-
-            const data = await response.json();
+            const data = await apiPost('/api/rooms', { ...createForm, clubId });
 
             if (data.success) {
                 setSuccess('房间创建成功！');
@@ -91,14 +79,7 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
         setSuccess('');
 
         try {
-            const response = await fetch(`/api/rooms/${roomId}/${action}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            const data = await response.json();
+            const data = await apiPost(`/api/rooms/${roomId}/${action}`);
 
             if (data.success) {
                 setSuccess(`房间${action === 'start' ? '开始' : action === 'end' ? '结束' : '取消'}成功！`);
@@ -117,6 +98,46 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
         // 调用父组件的回调函数进入房间
         if (onEnterRoom) {
             onEnterRoom(roomId);
+        }
+    };
+
+    const handleShowSettlement = async (room) => {
+        setSettlementRoom(room);
+        setSettlementData(null);
+        setSettlementLoading(true);
+        setError('');
+        const data = await apiGet(`/api/rooms/${room.id}/settlement`);
+        setSettlementLoading(false);
+        if (data.success) {
+            setSettlementData(data.data);
+        } else {
+            setError(data.message || '加载盈亏数据失败');
+            setSettlementRoom(null);
+        }
+    };
+
+    const closeSettlementModal = () => {
+        setSettlementRoom(null);
+        setSettlementData(null);
+    };
+
+    const handleRestartRoom = async (roomId) => {
+        if (!window.confirm('确定要重新开始此房间吗？盈亏统计将被清除。')) return;
+        setLoading(true);
+        setError('');
+        setSuccess('');
+        try {
+            const data = await apiPost(`/api/rooms/${roomId}/restart`);
+            if (data.success) {
+                setSuccess('房间已重新开始');
+                fetchRooms();
+            } else {
+                setError(data.message || '重新开始失败');
+            }
+        } catch (err) {
+            setError('网络错误，请重试');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -382,41 +403,14 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
                                 </div>
 
                                 <div className="room-actions">
-                                    {room.status === 'WAITING' && (
-                                        <>
-                                            <button 
-                                                className="join-btn"
-                                                onClick={() => handleJoinRoom(room.id)}
-                                                disabled={loading}
-                                            >
-                                                进入房间
-                                            </button>
-                                            <button 
-                                                className="start-btn"
-                                                onClick={() => handleRoomAction(room.id, 'start')}
-                                                disabled={loading}
-                                            >
-                                                开始游戏
-                                            </button>
-                                        </>
-                                    )}
-                                    {room.status === 'RUNNING' && (
-                                        <>
-                                            <button 
-                                                className="join-btn"
-                                                onClick={() => handleJoinRoom(room.id)}
-                                                disabled={loading}
-                                            >
-                                                进入游戏
-                                            </button>
-                                            <button 
-                                                className="end-btn"
-                                                onClick={() => handleRoomAction(room.id, 'end')}
-                                                disabled={loading}
-                                            >
-                                                结束游戏
-                                            </button>
-                                        </>
+                                    {(room.status === 'WAITING' || room.status === 'RUNNING') && (
+                                        <button 
+                                            className="join-btn"
+                                            onClick={() => handleJoinRoom(room.id)}
+                                            disabled={loading}
+                                        >
+                                            进入牌桌
+                                        </button>
                                     )}
                                     {(room.status === 'WAITING' || room.status === 'RUNNING') && (
                                         <button 
@@ -424,21 +418,74 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
                                             onClick={() => handleRoomAction(room.id, 'cancel')}
                                             disabled={loading}
                                         >
-                                            取消房间
+                                            关闭房间
                                         </button>
                                     )}
-                                    <button 
-                                        className="view-btn"
-                                        onClick={() => window.location.href = `/rooms/${room.roomCode}`}
-                                    >
-                                        进入房间
-                                    </button>
+                                    {(room.status === 'FINISHED' || room.status === 'CANCELLED') && (
+                                        <>
+                                            {room.hasSettlement && (
+                                                <button
+                                                    className="settlement-btn"
+                                                    onClick={() => handleShowSettlement(room)}
+                                                    disabled={loading}
+                                                >
+                                                    盈亏统计
+                                                </button>
+                                            )}
+                                            <button
+                                                className="restart-btn"
+                                                onClick={() => handleRestartRoom(room.id)}
+                                                disabled={loading}
+                                            >
+                                                重新开始
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
             </div>
+
+            {settlementRoom && (
+                <div className="settlement-modal-overlay" onClick={closeSettlementModal}>
+                    <div className="settlement-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="settlement-modal-header">
+                            <h3>{settlementRoom.name} - 盈亏统计</h3>
+                            <button className="modal-close-btn" onClick={closeSettlementModal}>关闭</button>
+                        </div>
+                        {settlementLoading ? (
+                            <p className="settlement-loading">加载中...</p>
+                        ) : settlementData && settlementData.players && settlementData.players.length > 0 ? (
+                            <table className="settlement-table">
+                                <thead>
+                                    <tr>
+                                        <th>玩家</th>
+                                        <th>总买入</th>
+                                        <th>剩余筹码</th>
+                                        <th>盈亏</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {settlementData.players.map((p) => (
+                                        <tr key={p.userId}>
+                                            <td>{p.username}</td>
+                                            <td>{p.totalBuyIn}</td>
+                                            <td>{p.remainingChips}</td>
+                                            <td className={p.profitLoss >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                                {p.profitLoss > 0 ? '+' : ''}{p.profitLoss}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <p className="settlement-empty">暂无盈亏数据</p>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

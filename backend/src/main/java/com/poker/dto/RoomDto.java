@@ -27,4 +27,5 @@ public class RoomDto {
     private LocalDateTime endedAt;
     private String clubName; // 俱乐部名称
     private String createdByName; // 创建者用户名
+    private Boolean hasSettlement; // 是否有盈亏快照
 }
