@@ -75,6 +75,8 @@ public class GameEngine {
         private boolean isAllIn;            // 是否全下
         private boolean hasFolded;          // 是否已弃牌
         private boolean hasActed;           // 本轮是否已行动
+        private PlayerAction lastAction;    // 本街最近一次操作
+        private BigDecimal lastActionAmount; // 跟注/加注/全下金额（展示用）
 
         public Player(int id, String name, BigDecimal initialChips) {
             this.id = id;
@@ -107,6 +109,18 @@ public class GameEngine {
             this.betAmount = BigDecimal.ZERO;
             this.totalBet = BigDecimal.ZERO;
             this.hasActed = false;
+            this.lastAction = null;
+            this.lastActionAmount = null;
+        }
+
+        public void recordAction(PlayerAction action, BigDecimal amount) {
+            this.lastAction = action;
+            this.lastActionAmount = amount;
+        }
+
+        public void clearStreetAction() {
+            this.lastAction = null;
+            this.lastActionAmount = null;
         }
 
         public void bet(BigDecimal amount) {
@@ -279,7 +293,7 @@ public class GameEngine {
         lastRaiseIncrement = BigDecimal.valueOf(bigBlindAmount);
 
         // 设置第一个行动玩家（大盲注后的第一个玩家）
-        currentPlayerIndex = getNextActivePlayer((getBigBlindPos() + 1) % players.size());
+        setTurnToPlayer(getNextActivePlayer((getBigBlindPos() + 1) % players.size()));
 
         log.info("新一手牌开始，按钮位置：{}，当前行动玩家：{}", buttonPosition, currentPlayerIndex);
     }
@@ -366,6 +380,7 @@ public class GameEngine {
         switch (action) {
             case FOLD:
                 currentPlayer.fold();
+                currentPlayer.recordAction(PlayerAction.FOLD, null);
                 log.info("玩家{}弃牌", currentPlayer.getName());
                 break;
                 
@@ -376,6 +391,7 @@ public class GameEngine {
                     return false;
                 }
                 currentPlayer.hasActed = true;
+                currentPlayer.recordAction(PlayerAction.CHECK, null);
                 log.info("玩家{}过牌", currentPlayer.getName());
                 break;
                 
@@ -389,6 +405,7 @@ public class GameEngine {
                 BigDecimal actualCall = callAmount.min(currentPlayer.chips);
                 currentPlayer.bet(callAmount);
                 totalPot = totalPot.add(actualCall);
+                currentPlayer.recordAction(PlayerAction.CALL, actualCall);
                 log.info("Player {} calls {}", currentPlayer.getName(), actualCall);
                 break;
                 
@@ -416,6 +433,7 @@ public class GameEngine {
                 totalPot = totalPot.add(raiseAmount);
                 currentBet = amount;
                 applyRaiseReopen(currentPlayer, betBeforeRaise, amount);
+                currentPlayer.recordAction(PlayerAction.RAISE, amount);
                 log.info("玩家{}加注到{}", currentPlayer.getName(), amount);
                 break;
 
@@ -438,6 +456,7 @@ public class GameEngine {
                     applyRaiseReopen(currentPlayer, betBeforeAllIn, allInTotal);
                 }
 
+                currentPlayer.recordAction(PlayerAction.ALL_IN, allInTotal);
                 log.info("玩家{}全下{}", currentPlayer.getName(), allInTotal);
                 break;
         }
@@ -478,7 +497,7 @@ public class GameEngine {
             }
         } else {
             // 移动到下一个玩家
-            currentPlayerIndex = getNextActivePlayer(currentPlayerIndex + 1);
+            setTurnToPlayer(getNextActivePlayer(currentPlayerIndex + 1));
             
             // 翻牌前特殊处理：如果所有人都行动完了，但大盲注还没有额外行动，轮到大盲注
             if (currentState == GameState.PRE_FLOP && currentPlayerIndex == -1) {
@@ -488,7 +507,7 @@ public class GameEngine {
                 if (bigBlindPlayer.isActive && !bigBlindPlayer.isAllIn && 
                     bigBlindPlayer.betAmount.compareTo(BigDecimal.valueOf(bigBlindAmount)) == 0 &&
                     !bigBlindPlayer.hasActed) {
-                    currentPlayerIndex = bigBlindPos;
+                    setTurnToPlayer(bigBlindPos);
                     log.debug("翻牌前：轮到大盲注玩家{}行动", bigBlindPlayer.getName());
                 }
             }
@@ -598,7 +617,7 @@ public class GameEngine {
 
         if (currentState != GameState.SHOWDOWN && currentState != GameState.FINISHED) {
             // 设置下一轮的第一个行动玩家（小盲注位置开始）
-            currentPlayerIndex = getNextActivePlayer((buttonPosition + 1) % players.size());
+            setTurnToPlayer(getNextActivePlayer((buttonPosition + 1) % players.size()));
         }
 
         log.info("游戏状态推进到：{}", currentState);
@@ -804,6 +823,14 @@ public class GameEngine {
         deck.burnCard(); // 烧牌
         communityCards.add(deck.dealCard());
         log.info("河牌发放完成：{}", communityCards.get(4));
+    }
+
+    /**
+     * Assign the current turn. Action labels are kept until the player acts again;
+     * the frontend hides the label while it is this player's turn.
+     */
+    private void setTurnToPlayer(int index) {
+        this.currentPlayerIndex = index;
     }
 
     /**

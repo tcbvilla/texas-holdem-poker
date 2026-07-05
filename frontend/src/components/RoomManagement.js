@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import './RoomManagement.css';
 import { apiGet, apiPost } from '../api';
-import { setInternalTitle } from '../branding';
+import { setInternalTitle, TERMS } from '../branding';
 
 const RoomManagement = () => {
     const { clubId } = useParams();
@@ -47,7 +47,7 @@ const RoomManagement = () => {
     const [createForm, setCreateForm] = useState(emptyRoomForm());
 
     useEffect(() => {
-        setInternalTitle('房间管理');
+        setInternalTitle(TERMS.classroomMgmt);
         if (clubId) {
             fetchRooms();
         }
@@ -70,7 +70,7 @@ const RoomManagement = () => {
             const data = await apiPost('/api/rooms', { ...createForm, clubId });
 
             if (data.success) {
-                setSuccess('房间创建成功！');
+                setSuccess(`${TERMS.classroom}创建成功！`);
                 setCreateForm(emptyRoomForm());
                 setShowCreateForm(false);
                 fetchRooms();
@@ -93,7 +93,8 @@ const RoomManagement = () => {
             const data = await apiPost(`/api/rooms/${roomId}/${action}`);
 
             if (data.success) {
-                setSuccess(`房间${action === 'start' ? '开始' : action === 'end' ? '结束' : '取消'}成功！`);
+                const actionText = action === 'start' ? '开始' : action === 'end' ? '结束' : '关闭';
+                setSuccess(`${TERMS.classroom}${actionText}成功！`);
                 fetchRooms();
             } else {
                 setError(data.message || '操作失败');
@@ -150,11 +151,11 @@ const RoomManagement = () => {
         try {
             const data = await apiPost(`/api/rooms/${restartTarget.id}/restart`, restartForm);
             if (data.success) {
-                setSuccess('房间已重新开始');
+                setSuccess(`${TERMS.classroom}已重新开课`);
                 closeRestartModal();
                 fetchRooms();
             } else {
-                setError(data.message || '重新开始失败');
+                setError(data.message || '重新开课失败');
             }
         } catch (err) {
             setError('网络错误，请重试');
@@ -165,10 +166,10 @@ const RoomManagement = () => {
 
     const getStatusText = (status) => {
         const statusMap = {
-            'WAITING': '等待中',
-            'RUNNING': '进行中',
-            'FINISHED': '已结束',
-            'CANCELLED': '已取消'
+            'WAITING': TERMS.statusWaiting,
+            'RUNNING': TERMS.statusRunning,
+            'FINISHED': TERMS.statusFinished,
+            'CANCELLED': TERMS.statusCancelled
         };
         return statusMap[status] || status;
     };
@@ -188,9 +189,9 @@ const RoomManagement = () => {
         return (
             <div className="room-management">
                 <div className="error-message">
-                    <h2>❌ 错误</h2>
-                    <p>请先选择一个俱乐部才能管理房间</p>
-                    <p>房间只能在俱乐部内创建和管理</p>
+                    <h2>提示</h2>
+                    <p>{TERMS.selectSchoolFirst}</p>
+                    <p>{TERMS.schoolOnlyRooms}</p>
                 </div>
             </div>
         );
@@ -199,12 +200,12 @@ const RoomManagement = () => {
     return (
         <div className="room-management">
             <div className="room-header">
-                <h1>🏠 房间管理</h1>
+                <h1>{TERMS.classroomMgmt}</h1>
                 <button 
                     className="create-room-btn"
                     onClick={() => setShowCreateForm(true)}
                 >
-                    + 创建房间
+                    + {TERMS.createClassroom}
                 </button>
             </div>
 
@@ -373,11 +374,11 @@ const RoomManagement = () => {
 
             {/* 房间列表 */}
             <div className="rooms-section">
-                <h2>房间列表</h2>
+                <h2>{TERMS.classroomList}</h2>
                 <div className="rooms-grid">
                     {rooms.length === 0 ? (
                         <div className="empty-state">
-                            <p>还没有创建任何房间</p>
+                            <p>{TERMS.noClassrooms}</p>
                         </div>
                     ) : (
                         rooms.map(room => (
@@ -392,19 +393,19 @@ const RoomManagement = () => {
                                 <div className="room-info">
                                     <div className="room-details">
                                         <div className="detail-item">
-                                            <span className="label">房间号:</span>
+                                            <span className="label">{TERMS.classroomCode}:</span>
                                             <span className="value">{room.roomCode}</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="label">盲注:</span>
+                                            <span className="label">{TERMS.bookFee}:</span>
                                             <span className="value">{room.smallBlind}/{room.bigBlind}</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="label">座位:</span>
+                                            <span className="label">{TERMS.maxSeats}:</span>
                                             <span className="value">{room.maxSeats}人</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="label">买入:</span>
+                                            <span className="label">缴费:</span>
                                             <span className="value">{room.minBuyin}-{room.maxBuyin}</span>
                                         </div>
                                         <div className="detail-item">
@@ -412,7 +413,7 @@ const RoomManagement = () => {
                                             <span className="value">{room.durationMinutes}分钟</span>
                                         </div>
                                         <div className="detail-item">
-                                            <span className="label">操作时间:</span>
+                                            <span className="label">互动时限:</span>
                                             <span className="value">{room.actionTimeSeconds}秒</span>
                                         </div>
                                     </div>
@@ -431,7 +432,7 @@ const RoomManagement = () => {
                                             onClick={() => handleJoinRoom(room.id)}
                                             disabled={loading}
                                         >
-                                            进入牌桌
+                                            {TERMS.enterClassroom}
                                         </button>
                                     )}
                                     {(room.status === 'WAITING' || room.status === 'RUNNING') && (
@@ -440,7 +441,7 @@ const RoomManagement = () => {
                                             onClick={() => handleRoomAction(room.id, 'cancel')}
                                             disabled={loading}
                                         >
-                                            关闭房间
+                                            {TERMS.closeClassroom}
                                         </button>
                                     )}
                                     {(room.status === 'FINISHED' || room.status === 'CANCELLED') && (
@@ -451,7 +452,7 @@ const RoomManagement = () => {
                                                     onClick={() => handleShowSettlement(room)}
                                                     disabled={loading}
                                                 >
-                                                    盈亏统计
+                                                    {TERMS.tuitionStats}
                                                 </button>
                                             )}
                                             <button
@@ -459,7 +460,7 @@ const RoomManagement = () => {
                                                 onClick={() => openRestartModal(room)}
                                                 disabled={loading}
                                             >
-                                                重新开始
+                                                {TERMS.restartClassroom}
                                             </button>
                                         </>
                                     )}

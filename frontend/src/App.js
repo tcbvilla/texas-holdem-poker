@@ -11,6 +11,7 @@ import {
   PUBLIC_APP_NAME,
   PUBLIC_TAGLINE,
   INTERNAL_APP_NAME,
+  TERMS,
   setPublicTitle,
   setInternalTitle,
 } from './branding';
@@ -18,10 +19,6 @@ import {
 function isAdminUser(user) {
   if (!user) return false;
   return Boolean(user.admin || String(user.username || '').toLowerCase() === 'admin');
-}
-
-function isPlaceholderEmail(email) {
-  return Boolean(email && (email.endsWith('@noreply.local') || email.endsWith('@system.local')));
 }
 
 function PrivateRoute({ user, children }) {
@@ -81,7 +78,7 @@ function AppHome({ user, onLogout }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setInternalTitle('首页');
+    setInternalTitle(TERMS.home);
   }, []);
 
   return (
@@ -90,11 +87,10 @@ function AppHome({ user, onLogout }) {
       <div className="user-section">
         <div className="user-info">
           <h2>欢迎回来，{user.username}！</h2>
-          {!isPlaceholderEmail(user.email) && <p>邮箱：{user.email}</p>}
         </div>
         <div className="user-actions">
           <button className="action-btn" onClick={() => navigate('/app/clubs')}>
-            俱乐部管理
+            {TERMS.schoolMgmt}
           </button>
           <button className="action-btn" onClick={onLogout}>
             退出登录
@@ -218,20 +214,20 @@ function AppLayout({ user, setUser }) {
         ) : (
           <>
             <Link to="/app" className={location.pathname === '/app' ? 'active' : ''}>
-              首页
+              {TERMS.home}
             </Link>
             <Link
               to="/app/clubs"
               className={location.pathname.startsWith('/app/clubs') && !location.pathname.includes('/game/') ? 'active' : ''}
             >
-              俱乐部
+              {TERMS.school}
             </Link>
             {activeClubId && (
               <Link
                 to={`/app/clubs/${activeClubId}/rooms`}
                 className={location.pathname.includes('/rooms') ? 'active' : ''}
               >
-                房间管理
+                {TERMS.classroomMgmt}
               </Link>
             )}
             <span className="nav-user">{user?.username}</span>

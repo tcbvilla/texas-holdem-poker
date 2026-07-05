@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ClubManagement.css';
 import { apiGet, apiPost } from '../api';
-import { setInternalTitle } from '../branding';
+import { setInternalTitle, TERMS } from '../branding';
 
 const ClubManagement = () => {
     const navigate = useNavigate();
@@ -20,7 +20,7 @@ const ClubManagement = () => {
     });
 
     useEffect(() => {
-        setInternalTitle('俱乐部');
+        setInternalTitle(TERMS.schoolMgmt);
         fetchClubs();
         fetchMyClubs();
     }, []);
@@ -49,7 +49,7 @@ const ClubManagement = () => {
             const data = await apiPost('/api/clubs', createForm);
 
             if (data.success) {
-                setSuccess('俱乐部创建成功！');
+                setSuccess(`${TERMS.school}创建成功！`);
                 setCreateForm({ name: '', description: '' });
                 setShowCreateForm(false);
                 fetchClubs();
@@ -73,7 +73,7 @@ const ClubManagement = () => {
             const data = await apiPost(`/api/club-join/${clubId}/apply`);
 
             if (data.success) {
-                setSuccess('成功加入俱乐部！');
+                setSuccess(`成功加入${TERMS.school}！`);
                 fetchMyClubs();
             } else {
                 setError(data.message || '加入失败');
@@ -86,7 +86,7 @@ const ClubManagement = () => {
     };
 
     const handleLeaveClub = async (clubId) => {
-        if (!window.confirm('确定要退出这个俱乐部吗？')) {
+        if (!window.confirm(`确定要退出这个${TERMS.school}吗？`)) {
             return;
         }
 
@@ -98,7 +98,7 @@ const ClubManagement = () => {
             const data = await apiPost(`/api/club-join/${clubId}/leave`);
 
             if (data.success) {
-                setSuccess('成功退出俱乐部！');
+                setSuccess(`成功退出${TERMS.school}！`);
                 fetchMyClubs();
             } else {
                 setError(data.message || '退出失败');
@@ -122,12 +122,12 @@ const ClubManagement = () => {
     return (
         <div className="club-management">
             <div className="club-header">
-                <h1>🏛️ 俱乐部管理</h1>
+                <h1>{TERMS.schoolMgmt}</h1>
                 <button 
                     className="create-club-btn"
                     onClick={() => setShowCreateForm(true)}
                 >
-                    + 创建俱乐部
+                    + {TERMS.createSchool}
                 </button>
             </div>
 
@@ -139,7 +139,7 @@ const ClubManagement = () => {
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h2>创建俱乐部</h2>
+                            <h2>{TERMS.createSchool}</h2>
                             <button 
                                 className="close-btn"
                                 onClick={() => setShowCreateForm(false)}
@@ -149,23 +149,23 @@ const ClubManagement = () => {
                         </div>
                         <form onSubmit={handleCreateClub} className="create-form">
                             <div className="form-group">
-                                <label htmlFor="name">俱乐部名称</label>
+                                <label htmlFor="name">{TERMS.schoolName}</label>
                                 <input
                                     type="text"
                                     id="name"
                                     value={createForm.name}
                                     onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
-                                    placeholder="请输入俱乐部名称"
+                                    placeholder={TERMS.schoolNamePh}
                                     required
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="description">俱乐部描述</label>
+                                <label htmlFor="description">{TERMS.schoolDesc}</label>
                                 <textarea
                                     id="description"
                                     value={createForm.description}
                                     onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
-                                    placeholder="请输入俱乐部描述"
+                                    placeholder={TERMS.schoolDescPh}
                                     rows="4"
                                 />
                             </div>
@@ -182,7 +182,7 @@ const ClubManagement = () => {
                                     className="submit-btn"
                                     disabled={loading}
                                 >
-                                    {loading ? '创建中...' : '创建俱乐部'}
+                                    {loading ? '创建中...' : TERMS.createSchool}
                                 </button>
                             </div>
                         </form>
@@ -192,11 +192,11 @@ const ClubManagement = () => {
 
             {/* 我的俱乐部 */}
             <div className="section">
-                <h2>我的俱乐部</h2>
+                <h2>{TERMS.mySchools}</h2>
                 <div className="clubs-grid">
                     {myClubs.length === 0 ? (
                         <div className="empty-state">
-                            <p>您还没有加入任何俱乐部</p>
+                            <p>{TERMS.noSchoolJoined}</p>
                         </div>
                     ) : (
                         myClubs.map(club => (
@@ -213,7 +213,7 @@ const ClubManagement = () => {
                                         className="view-btn"
                                         onClick={() => navigate(`/app/clubs/${club.id}/rooms`)}
                                     >
-                                        进入俱乐部
+                                        {TERMS.enterSchool}
                                     </button>
                                     <button 
                                         className="leave-btn"
@@ -232,11 +232,11 @@ const ClubManagement = () => {
             {/* 所有俱乐部 */}
             <div className="section">
                 <div className="section-header">
-                    <h2>所有俱乐部</h2>
+                    <h2>{TERMS.allSchools}</h2>
                     <div className="search-box">
                         <input
                             type="text"
-                            placeholder="搜索俱乐部..."
+                            placeholder={TERMS.searchSchool}
                             value={searchKeyword}
                             onChange={(e) => setSearchKeyword(e.target.value)}
                         />
@@ -245,7 +245,7 @@ const ClubManagement = () => {
                 <div className="clubs-grid">
                     {filteredClubs.length === 0 ? (
                         <div className="empty-state">
-                            <p>没有找到俱乐部</p>
+                            <p>{TERMS.noSchoolFound}</p>
                         </div>
                     ) : (
                         filteredClubs.map(club => (
@@ -271,7 +271,7 @@ const ClubManagement = () => {
                                             onClick={() => handleJoinClub(club.id)}
                                             disabled={loading}
                                         >
-                                            加入俱乐部
+                                            {TERMS.joinSchool}
                                         </button>
                                     )}
                                 </div>

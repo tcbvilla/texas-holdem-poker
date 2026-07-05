@@ -5,6 +5,34 @@ import { setInternalTitle } from '../branding';
 
 const POLL_INTERVAL = 1500;
 
+const POT_PRESETS = [
+    { label: '1/3', ratio: 1 / 3 },
+    { label: '1/2', ratio: 1 / 2 },
+    { label: '2/3', ratio: 2 / 3 },
+    { label: '1x', ratio: 1 },
+    { label: '2x', ratio: 2 },
+];
+
+const clampRaiseTo = (value, min, max) => {
+    const v = Math.round(Number(value) || 0);
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+};
+
+/** Effective pot = table pot + amount needed to call; raise-to = currentBet + call + increment. */
+const calcPotRaiseTo = (state, actions, ratio) => {
+    const totalPot = Number(state.totalPot || 0);
+    const callAmount = Number(actions.callAmount || 0);
+    const currentBet = Number(state.currentBet || 0);
+    const minRaiseTo = Number(actions.minRaiseTo || 0);
+    const maxRaiseTo = Number(actions.maxRaiseTo || 0);
+    const effectivePot = totalPot + callAmount;
+    const increment = Math.round(effectivePot * ratio);
+    const raiseTo = currentBet + callAmount + increment;
+    return clampRaiseTo(raiseTo, minRaiseTo, maxRaiseTo);
+};
+
 const PokerTable = ({ roomId, user, onBack }) => {
     const [state, setState] = useState(null);
     const [error, setError] = useState('');
@@ -13,8 +41,12 @@ const PokerTable = ({ roomId, user, onBack }) => {
     const [buyin, setBuyin] = useState('');
     const [rebuyAmount, setRebuyAmount] = useState('');
     const [raiseTo, setRaiseTo] = useState(0);
+    const [raiseInput, setRaiseInput] = useState('');
+    const [raiseMenuOpen, setRaiseMenuOpen] = useState(false);
+    const [raiseCustomOpen, setRaiseCustomOpen] = useState(false);
     const [showStats, setShowStats] = useState(false);
     const pollRef = useRef(null);
+    const turnKeyRef = useRef(null);
 
     const loadState = useCallback(async () => {
         const data = await apiGet(`/api/game/rooms/${roomId}/state`);
@@ -32,13 +64,79 @@ const PokerTable = ({ roomId, user, onBack }) => {
         return () => clearInterval(pollRef.current);
     }, [loadState]);
 
-    // Keep the raise slider within valid bounds when it becomes the player's turn.
+    const setRaiseAmount = (value) => {
+        const min = Number(state?.actions?.minRaiseTo || 0);
+        const max = Number(state?.actions?.maxRaiseTo || 0);
+        const clamped = clampRaiseTo(value, min, max);
+        setRaiseTo(clamped);
+        setRaiseInput(String(clamped));
+    };
+
+    // Default raise when a new betting turn starts (1/2 pot, else minimum).
     useEffect(() => {
-        if (state && state.actions && state.actions.myTurn) {
-            const min = Number(state.actions.minRaiseTo || 0);
-            setRaiseTo((prev) => (prev && prev >= min ? prev : min));
-        }
+        if (!state?.actions?.myTurn || !state.actions.canRaise) return;
+        const turnKey = `${state.handNumber}-${state.currentTurnUserId}-${state.gameState}`;
+        if (turnKey === turnKeyRef.current) return;
+        turnKeyRef.current = turnKey;
+
+        const min = Number(state.actions.minRaiseTo || 0);
+        const halfPot = calcPotRaiseTo(state, state.actions, 0.5);
+        const defaultTo = halfPot > min ? halfPot : min;
+        setRaiseTo(defaultTo);
+        setRaiseInput(String(defaultTo));
+        setRaiseMenuOpen(false);
+        setRaiseCustomOpen(false);
     }, [state]);
+
+    const handleRaiseInputChange = (e) => {
+        const raw = e.target.value;
+        if (raw === '' || /^\d+$/.test(raw)) {
+            setRaiseInput(raw);
+        }
+    };
+
+    const commitRaiseInput = () => {
+        if (!state?.actions?.canRaise) return raiseTo;
+        const min = Number(state.actions.minRaiseTo || 0);
+        const max = Number(state.actions.maxRaiseTo || 0);
+        if (raiseInput === '') {
+            setRaiseAmount(min);
+            return min;
+        }
+        const clamped = clampRaiseTo(raiseInput, min, max);
+        setRaiseTo(clamped);
+        setRaiseInput(String(clamped));
+        return clamped;
+    };
+
+    const closeRaiseUI = () => {
+        setRaiseMenuOpen(false);
+        setRaiseCustomOpen(false);
+    };
+
+    const handlePresetRaise = (ratio) => {
+        if (!state?.actions?.canRaise) return;
+        const amount = calcPotRaiseTo(state, state.actions, ratio);
+        closeRaiseUI();
+        act('RAISE', amount);
+    };
+
+    const handleRaiseSubmit = () => {
+        const amount = commitRaiseInput();
+        closeRaiseUI();
+        act('RAISE', amount);
+    };
+
+    const toggleRaiseMenu = () => {
+        setRaiseMenuOpen((open) => {
+            if (open) {
+                setRaiseCustomOpen(false);
+                return false;
+            }
+            setRaiseCustomOpen(false);
+            return true;
+        });
+    };
 
     const flash = (msg) => {
         setNotice(msg);
@@ -260,26 +358,75 @@ const PokerTable = ({ roomId, user, onBack }) => {
                                 跟注 {fmt(a.callAmount)}
                               </button>}
                         {a.canRaise && (
-                            <div className="raise-group">
-                                <input
-                                    type="range"
-                                    min={Number(a.minRaiseTo)}
-                                    max={Number(a.maxRaiseTo)}
-                                    step={state.bigBlind}
-                                    value={raiseTo}
-                                    onChange={(e) => setRaiseTo(parseInt(e.target.value, 10))}
-                                />
-                                <input
-                                    type="number"
-                                    className="raise-input"
-                                    min={Number(a.minRaiseTo)}
-                                    max={Number(a.maxRaiseTo)}
-                                    value={raiseTo}
-                                    onChange={(e) => setRaiseTo(parseInt(e.target.value, 10) || 0)}
-                                />
-                                <button className="act-raise" onClick={() => act('RAISE', raiseTo)} disabled={busy}>
-                                    加注到 {raiseTo}
+                            <div className="raise-wrap">
+                                <button
+                                    type="button"
+                                    className={`act-raise${raiseMenuOpen ? ' is-open' : ''}`}
+                                    onClick={toggleRaiseMenu}
+                                    disabled={busy}
+                                >
+                                    加注
                                 </button>
+                                {raiseMenuOpen && (
+                                    <div className="raise-popup">
+                                        {POT_PRESETS.map((preset) => {
+                                            const presetTo = calcPotRaiseTo(state, a, preset.ratio);
+                                            return (
+                                                <button
+                                                    key={preset.label}
+                                                    type="button"
+                                                    className="raise-menu-item"
+                                                    onClick={() => handlePresetRaise(preset.ratio)}
+                                                    disabled={busy}
+                                                >
+                                                    <span>{preset.label}</span>
+                                                    <span>{presetTo}</span>
+                                                </button>
+                                            );
+                                        })}
+                                        <button
+                                            type="button"
+                                            className={`raise-menu-item raise-menu-custom${raiseCustomOpen ? ' is-active' : ''}`}
+                                            onClick={() => setRaiseCustomOpen(true)}
+                                            disabled={busy}
+                                        >
+                                            <span>自定义</span>
+                                        </button>
+                                        {raiseCustomOpen && (
+                                            <div className="raise-custom-panel">
+                                                <input
+                                                    type="range"
+                                                    min={Number(a.minRaiseTo)}
+                                                    max={Number(a.maxRaiseTo)}
+                                                    step={state.bigBlind}
+                                                    value={raiseTo}
+                                                    onChange={(e) => setRaiseAmount(parseInt(e.target.value, 10))}
+                                                />
+                                                <div className="raise-custom-row">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        className="raise-input"
+                                                        value={raiseInput}
+                                                        onChange={handleRaiseInputChange}
+                                                        onBlur={commitRaiseInput}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleRaiseSubmit();
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="raise-confirm-btn"
+                                                        onClick={handleRaiseSubmit}
+                                                        disabled={busy}
+                                                    >
+                                                        确认 {raiseInput !== '' ? raiseInput : raiseTo}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                         <button className="act-allin" onClick={() => act('ALL_IN')} disabled={busy}>全下</button>
@@ -301,6 +448,20 @@ const PokerTable = ({ roomId, user, onBack }) => {
 const fmt = (v) => {
     const n = Number(v || 0);
     return Number.isInteger(n) ? n : n.toFixed(0);
+};
+
+const formatPlayerAction = (player) => {
+    if (!player.lastAction) return null;
+    const hasAmt = player.lastActionAmount != null && player.lastActionAmount !== '';
+    const amt = hasAmt ? fmt(player.lastActionAmount) : '';
+    switch (player.lastAction) {
+        case 'CHECK': return '过牌';
+        case 'FOLD': return '弃牌';
+        case 'CALL': return hasAmt ? `跟注 ${amt}` : '跟注';
+        case 'RAISE': return hasAmt ? `加注 ${amt}` : '加注';
+        case 'ALL_IN': return hasAmt ? `全下 ${amt}` : '全下';
+        default: return null;
+    }
 };
 
 const stateLabel = (s) => ({
@@ -351,6 +512,12 @@ const PlayerSeat = ({ player, style }) => {
     if (player.folded) classes.push('is-folded');
     if (player.isWinner) classes.push('is-winner');
 
+    // Show last action for everyone except the player who must act now (old label hidden until they act again).
+    const actionText = !player.isCurrentTurn ? formatPlayerAction(player) : null;
+    const actionClass = player.lastAction
+        ? `action-${player.lastAction.toLowerCase().replace(/_/g, '-')}`
+        : '';
+
     return (
         <div className={classes.join(' ')} style={style}>
             <div className="player-badges">
@@ -373,9 +540,13 @@ const PlayerSeat = ({ player, style }) => {
             </div>
 
             {Number(player.betAmount) > 0 && (
-                <div className="player-bet">注 {fmt(player.betAmount)}</div>
+                <div className="player-bet">前注 {fmt(player.betAmount)}</div>
             )}
-            {player.folded && <div className="folded-tag">弃</div>}
+            {actionText && (
+                <div className={`player-action-tag ${actionClass}`}>
+                    {actionText}
+                </div>
+            )}
             {player.handDescription && (
                 <div className="hand-desc" title={player.handDescription}>{player.handDescription}</div>
             )}

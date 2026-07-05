@@ -358,6 +358,15 @@ public class GameTable {
             pv.put("betAmount", inHand ? ep.getBetAmount() : BigDecimal.ZERO);
             pv.put("folded", inHand && ep.isHasFolded());
             pv.put("allIn", inHand && ep.isAllIn());
+            if (inHand) {
+                pv.put("hasActed", ep.isHasActed());
+                if (ep.getLastAction() != null) {
+                    pv.put("lastAction", ep.getLastAction().name());
+                    if (ep.getLastActionAmount() != null) {
+                        pv.put("lastActionAmount", ep.getLastActionAmount());
+                    }
+                }
+            }
             pv.put("isButton", inHand && idx == buttonPos);
             pv.put("isSmallBlind", inHand && idx == sbPos);
             pv.put("isBigBlind", inHand && idx == bbPos);
