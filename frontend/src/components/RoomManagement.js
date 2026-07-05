@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import './RoomManagement.css';
 import { apiGet, apiPost } from '../api';
+import { setInternalTitle } from '../branding';
 
-const RoomManagement = ({ clubId, onEnterRoom }) => {
+const RoomManagement = () => {
+    const { clubId } = useParams();
+    const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -11,8 +15,10 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
     const [settlementRoom, setSettlementRoom] = useState(null);
     const [settlementData, setSettlementData] = useState(null);
     const [settlementLoading, setSettlementLoading] = useState(false);
+    const [restartTarget, setRestartTarget] = useState(null);
+    const [restartForm, setRestartForm] = useState(null);
 
-    const [createForm, setCreateForm] = useState({
+    const emptyRoomForm = () => ({
         name: '',
         description: '',
         smallBlind: 10,
@@ -25,7 +31,23 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
         actionTimeSeconds: 30
     });
 
+    const roomToForm = (room) => ({
+        name: room.name || '',
+        description: room.description || '',
+        smallBlind: room.smallBlind,
+        bigBlind: room.bigBlind,
+        defaultChips: room.defaultChips,
+        minBuyin: room.minBuyin,
+        maxBuyin: room.maxBuyin,
+        maxSeats: room.maxSeats,
+        durationMinutes: room.durationMinutes,
+        actionTimeSeconds: room.actionTimeSeconds
+    });
+
+    const [createForm, setCreateForm] = useState(emptyRoomForm());
+
     useEffect(() => {
+        setInternalTitle('房间管理');
         if (clubId) {
             fetchRooms();
         }
@@ -49,18 +71,7 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
 
             if (data.success) {
                 setSuccess('房间创建成功！');
-                setCreateForm({
-                    name: '',
-                    description: '',
-                    smallBlind: 10,
-                    bigBlind: 20,
-                    defaultChips: 1000,
-                    minBuyin: 100,
-                    maxBuyin: 2000,
-                    maxSeats: 6,
-                    durationMinutes: 60,
-                    actionTimeSeconds: 30
-                });
+                setCreateForm(emptyRoomForm());
                 setShowCreateForm(false);
                 fetchRooms();
             } else {
@@ -95,10 +106,7 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
     };
 
     const handleJoinRoom = (roomId) => {
-        // 调用父组件的回调函数进入房间
-        if (onEnterRoom) {
-            onEnterRoom(roomId);
-        }
+        navigate(`/app/clubs/${clubId}/game/${roomId}`);
     };
 
     const handleShowSettlement = async (room) => {
@@ -121,15 +129,29 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
         setSettlementData(null);
     };
 
-    const handleRestartRoom = async (roomId) => {
-        if (!window.confirm('确定要重新开始此房间吗？盈亏统计将被清除。')) return;
+    const openRestartModal = (room) => {
+        setRestartTarget(room);
+        setRestartForm(roomToForm(room));
+        setError('');
+        setSuccess('');
+    };
+
+    const closeRestartModal = () => {
+        setRestartTarget(null);
+        setRestartForm(null);
+    };
+
+    const handleRestartRoom = async (e) => {
+        e.preventDefault();
+        if (!restartTarget || !restartForm) return;
         setLoading(true);
         setError('');
         setSuccess('');
         try {
-            const data = await apiPost(`/api/rooms/${roomId}/restart`);
+            const data = await apiPost(`/api/rooms/${restartTarget.id}/restart`, restartForm);
             if (data.success) {
                 setSuccess('房间已重新开始');
+                closeRestartModal();
                 fetchRooms();
             } else {
                 setError(data.message || '重新开始失败');
@@ -434,7 +456,7 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
                                             )}
                                             <button
                                                 className="restart-btn"
-                                                onClick={() => handleRestartRoom(room.id)}
+                                                onClick={() => openRestartModal(room)}
                                                 disabled={loading}
                                             >
                                                 重新开始
@@ -447,6 +469,151 @@ const RoomManagement = ({ clubId, onEnterRoom }) => {
                     )}
                 </div>
             </div>
+
+            {restartTarget && restartForm && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h2>重新开始 - {restartTarget.name}</h2>
+                            <button className="close-btn" onClick={closeRestartModal}>×</button>
+                        </div>
+                        <p className="restart-hint">可修改房间参数后重新开始，原有盈亏统计将被清除。</p>
+                        <form onSubmit={handleRestartRoom} className="create-form">
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="restart-name">房间名称</label>
+                                    <input
+                                        type="text"
+                                        id="restart-name"
+                                        value={restartForm.name}
+                                        onChange={(e) => setRestartForm({ ...restartForm, name: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="restart-maxSeats">最大座位数</label>
+                                    <select
+                                        id="restart-maxSeats"
+                                        value={restartForm.maxSeats}
+                                        onChange={(e) => setRestartForm({ ...restartForm, maxSeats: parseInt(e.target.value, 10) })}
+                                    >
+                                        {[2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                            <option key={num} value={num}>{num}人</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="restart-description">房间描述</label>
+                                <textarea
+                                    id="restart-description"
+                                    value={restartForm.description}
+                                    onChange={(e) => setRestartForm({ ...restartForm, description: e.target.value })}
+                                    rows="3"
+                                />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="restart-smallBlind">小盲注</label>
+                                    <input
+                                        type="number"
+                                        id="restart-smallBlind"
+                                        value={restartForm.smallBlind}
+                                        onChange={(e) => setRestartForm({ ...restartForm, smallBlind: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="restart-bigBlind">大盲注</label>
+                                    <input
+                                        type="number"
+                                        id="restart-bigBlind"
+                                        value={restartForm.bigBlind}
+                                        onChange={(e) => setRestartForm({ ...restartForm, bigBlind: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="restart-defaultChips">默认筹码</label>
+                                    <input
+                                        type="number"
+                                        id="restart-defaultChips"
+                                        value={restartForm.defaultChips}
+                                        onChange={(e) => setRestartForm({ ...restartForm, defaultChips: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="restart-minBuyin">最小买入</label>
+                                    <input
+                                        type="number"
+                                        id="restart-minBuyin"
+                                        value={restartForm.minBuyin}
+                                        onChange={(e) => setRestartForm({ ...restartForm, minBuyin: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="restart-maxBuyin">最大买入</label>
+                                    <input
+                                        type="number"
+                                        id="restart-maxBuyin"
+                                        value={restartForm.maxBuyin}
+                                        onChange={(e) => setRestartForm({ ...restartForm, maxBuyin: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="restart-durationMinutes">房间时长(分钟)</label>
+                                    <input
+                                        type="number"
+                                        id="restart-durationMinutes"
+                                        value={restartForm.durationMinutes}
+                                        onChange={(e) => setRestartForm({ ...restartForm, durationMinutes: parseInt(e.target.value, 10) })}
+                                        min="1"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="restart-actionTimeSeconds">操作时间(秒)</label>
+                                <input
+                                    type="number"
+                                    id="restart-actionTimeSeconds"
+                                    value={restartForm.actionTimeSeconds}
+                                    onChange={(e) => setRestartForm({ ...restartForm, actionTimeSeconds: parseInt(e.target.value, 10) })}
+                                    min="5"
+                                    max="300"
+                                    required
+                                />
+                            </div>
+
+                            <div className="form-actions">
+                                <button type="button" className="cancel-btn" onClick={closeRestartModal}>
+                                    取消
+                                </button>
+                                <button type="submit" className="submit-btn" disabled={loading}>
+                                    {loading ? '处理中...' : '确认重新开始'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {settlementRoom && (
                 <div className="settlement-modal-overlay" onClick={closeSettlementModal}>

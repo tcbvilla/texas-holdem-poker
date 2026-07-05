@@ -80,9 +80,12 @@ public interface RoomService {
     com.poker.dto.RoomSettlementSnapshot getSettlement(Long roomId);
 
     /**
-     * Reset a closed room to WAITING and clear settlement snapshot.
+     * Reset a closed room to WAITING, apply new parameters, and clear settlement snapshot.
      */
-    void restartRoom(Long roomId, User operator);
+    void restartRoom(Long roomId, User operator, String name, String description,
+                     Integer smallBlind, Integer bigBlind, Long defaultChips,
+                     Long minBuyin, Long maxBuyin, Integer maxSeats,
+                     Integer durationMinutes, Integer actionTimeSeconds);
     
     /**
      * 检查用户是否有权限操作房间

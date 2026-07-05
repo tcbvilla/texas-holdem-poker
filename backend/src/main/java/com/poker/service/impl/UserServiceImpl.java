@@ -1,6 +1,9 @@
 package com.poker.service.impl;
 
+import com.poker.entity.InviteCode;
+import com.poker.entity.InviteCode.InviteCodeStatus;
 import com.poker.entity.User;
+import com.poker.repository.InviteCodeRepository;
 import com.poker.repository.UserRepository;
 import com.poker.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 
 /**
  * 用户服务实现类
@@ -19,34 +25,48 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     
     private final UserRepository userRepository;
+    private final InviteCodeRepository inviteCodeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
     
     @Override
-    public User register(String username, String email, String password) {
-        log.info("用户注册: username={}, email={}", username, email);
+    public User register(String username, String password, String inviteCode) {
+        log.info("User registration: username={}", username);
         
-        // 验证参数
-        validateRegistrationParams(username, email, password);
+        validateRegistrationParams(username, password, inviteCode);
         
-        // 检查用户名是否已存在
         if (isUsernameExists(username)) {
             throw new IllegalArgumentException("用户名已存在");
         }
-        
-        // 检查邮箱是否已存在
-        if (isEmailExists(email)) {
-            throw new IllegalArgumentException("邮箱已存在");
+
+        String normalizedCode = inviteCode.trim().toUpperCase();
+        InviteCode invite = inviteCodeRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new IllegalArgumentException("邀请码不存在"));
+        if (invite.getStatus() != InviteCodeStatus.UNUSED) {
+            throw new IllegalArgumentException("邀请码已被使用");
         }
         
-        // 创建用户
+        String email = buildPlaceholderEmail(username);
+        
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(password));
         
         user = userRepository.save(user);
+
+        int updated = inviteCodeRepository.markUsed(
+                normalizedCode,
+                user.getId(),
+                LocalDateTime.now(),
+                InviteCodeStatus.UNUSED.name(),
+                InviteCodeStatus.USED.name()
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("邀请码已被使用");
+        }
         
-        log.info("用户注册成功: id={}, username={}", user.getId(), user.getUsername());
+        log.info("User registered: id={}, username={}", user.getId(), user.getUsername());
         return user;
     }
     
@@ -186,7 +206,7 @@ public class UserServiceImpl implements UserService {
     /**
      * 验证注册参数
      */
-    private void validateRegistrationParams(String username, String email, String password) {
+    private void validateRegistrationParams(String username, String password, String inviteCode) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("用户名不能为空");
         }
@@ -199,12 +219,13 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("用户名只能包含字母、数字和下划线");
         }
         
-        if (email == null || email.trim().isEmpty()) {
-            throw new IllegalArgumentException("邮箱不能为空");
+        if (inviteCode == null || inviteCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("邀请码不能为空");
         }
-        
-        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
-            throw new IllegalArgumentException("邮箱格式不正确");
+
+        String normalizedCode = inviteCode.trim().toUpperCase();
+        if (!normalizedCode.matches("^[A-Z0-9]{12,32}$")) {
+            throw new IllegalArgumentException("邀请码格式不正确");
         }
         
         if (password == null || password.trim().isEmpty()) {
@@ -214,5 +235,20 @@ public class UserServiceImpl implements UserService {
         if (password.length() < 6) {
             throw new IllegalArgumentException("密码长度不能少于6位");
         }
+    }
+
+    private String buildPlaceholderEmail(String username) {
+        String base = username.toLowerCase().replaceAll("[^a-z0-9]", "") + "@noreply.local";
+        if (!isEmailExists(base)) {
+            return base;
+        }
+        for (int i = 0; i < 10; i++) {
+            String candidate = username.toLowerCase().replaceAll("[^a-z0-9]", "")
+                    + "+" + (secureRandom.nextInt(900000) + 100000) + "@noreply.local";
+            if (!isEmailExists(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("无法生成用户邮箱，请更换用户名重试");
     }
 }

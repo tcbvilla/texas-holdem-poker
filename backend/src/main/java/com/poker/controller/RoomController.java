@@ -281,15 +281,29 @@ public class RoomController {
     }
 
     /**
-     * Restart a closed room: reset status and clear settlement snapshot.
+     * Restart a closed room: apply new parameters, reset status and clear settlement snapshot.
      */
     @PostMapping("/{roomId}/restart")
-    public ResponseEntity<Map<String, Object>> restartRoom(@PathVariable Long roomId) {
+    public ResponseEntity<Map<String, Object>> restartRoom(@PathVariable Long roomId,
+                                                             @RequestBody RestartRoomRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
             User currentUser = getCurrentUser();
             gameTableService.discardTable(roomId);
-            roomService.restartRoom(roomId, currentUser);
+            roomService.restartRoom(
+                    roomId,
+                    currentUser,
+                    request.getName(),
+                    request.getDescription(),
+                    request.getSmallBlind(),
+                    request.getBigBlind(),
+                    request.getDefaultChips(),
+                    request.getMinBuyin(),
+                    request.getMaxBuyin(),
+                    request.getMaxSeats(),
+                    request.getDurationMinutes(),
+                    request.getActionTimeSeconds()
+            );
             Room room = roomService.getRoomById(roomId);
             response.put("success", true);
             response.put("message", "房间已重新开始");
@@ -307,6 +321,52 @@ public class RoomController {
         return authService.getCurrentUser();
     }
     
+    /**
+     * Restart room request with updated parameters.
+     */
+    public static class RestartRoomRequest {
+        private String name;
+        private String description;
+        private Integer smallBlind;
+        private Integer bigBlind;
+        private Long defaultChips;
+        private Long minBuyin;
+        private Long maxBuyin;
+        private Integer maxSeats;
+        private Integer durationMinutes;
+        private Integer actionTimeSeconds;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+
+        public Integer getSmallBlind() { return smallBlind; }
+        public void setSmallBlind(Integer smallBlind) { this.smallBlind = smallBlind; }
+
+        public Integer getBigBlind() { return bigBlind; }
+        public void setBigBlind(Integer bigBlind) { this.bigBlind = bigBlind; }
+
+        public Long getDefaultChips() { return defaultChips; }
+        public void setDefaultChips(Long defaultChips) { this.defaultChips = defaultChips; }
+
+        public Long getMinBuyin() { return minBuyin; }
+        public void setMinBuyin(Long minBuyin) { this.minBuyin = minBuyin; }
+
+        public Long getMaxBuyin() { return maxBuyin; }
+        public void setMaxBuyin(Long maxBuyin) { this.maxBuyin = maxBuyin; }
+
+        public Integer getMaxSeats() { return maxSeats; }
+        public void setMaxSeats(Integer maxSeats) { this.maxSeats = maxSeats; }
+
+        public Integer getDurationMinutes() { return durationMinutes; }
+        public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+        public Integer getActionTimeSeconds() { return actionTimeSeconds; }
+        public void setActionTimeSeconds(Integer actionTimeSeconds) { this.actionTimeSeconds = actionTimeSeconds; }
+    }
+
     /**
      * 创建房间请求
      */

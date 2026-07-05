@@ -1,5 +1,6 @@
 package com.poker.controller;
 
+import com.poker.auth.AdminAuth;
 import com.poker.auth.AuthService;
 import com.poker.auth.TokenService;
 import com.poker.entity.User;
@@ -35,8 +36,8 @@ public class AuthController {
         try {
             User user = userService.register(
                     request.getUsername(),
-                    request.getEmail(),
-                    request.getPassword()
+                    request.getPassword(),
+                    request.getInviteCode()
             );
             
             String token = tokenService.issueToken(user.getId());
@@ -228,6 +229,7 @@ public class AuthController {
         userResponse.put("username", user.getUsername());
         userResponse.put("email", user.getEmail());
         userResponse.put("avatarUrl", user.getAvatarUrl());
+        userResponse.put("admin", AdminAuth.isAdmin(user));
         userResponse.put("createdAt", user.getCreatedAt());
         userResponse.put("updatedAt", user.getUpdatedAt());
         return userResponse;
@@ -238,16 +240,15 @@ public class AuthController {
      */
     public static class RegisterRequest {
         private String username;
-        private String email;
         private String password;
+        private String inviteCode;
         
-        // Getters and Setters
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+        public String getInviteCode() { return inviteCode; }
+        public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
     }
     
     /**

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './ClubManagement.css';
 import { apiGet, apiPost } from '../api';
+import { setInternalTitle } from '../branding';
 
-const ClubManagement = ({ onEnterClub }) => {
+const ClubManagement = () => {
+    const navigate = useNavigate();
     const [clubs, setClubs] = useState([]);
     const [myClubs, setMyClubs] = useState([]);
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -17,6 +20,7 @@ const ClubManagement = ({ onEnterClub }) => {
     });
 
     useEffect(() => {
+        setInternalTitle('俱乐部');
         fetchClubs();
         fetchMyClubs();
     }, []);
@@ -207,12 +211,7 @@ const ClubManagement = ({ onEnterClub }) => {
                                 <div className="club-actions">
                                     <button 
                                         className="view-btn"
-                                        onClick={() => {
-                                            // 调用父组件的回调函数进入俱乐部
-                                            if (onEnterClub) {
-                                                onEnterClub(club.id);
-                                            }
-                                        }}
+                                        onClick={() => navigate(`/app/clubs/${club.id}/rooms`)}
                                     >
                                         进入俱乐部
                                     </button>

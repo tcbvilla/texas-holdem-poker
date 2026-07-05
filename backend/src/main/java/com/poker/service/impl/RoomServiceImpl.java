@@ -228,7 +228,10 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public void restartRoom(Long roomId, User operator) {
+    public void restartRoom(Long roomId, User operator, String name, String description,
+                            Integer smallBlind, Integer bigBlind, Long defaultChips,
+                            Long minBuyin, Long maxBuyin, Integer maxSeats,
+                            Integer durationMinutes, Integer actionTimeSeconds) {
         log.info("Restarting room: roomId={}, operator={}", roomId, operator.getUsername());
         Room room = getRoomById(roomId);
         if (!canOperateRoom(room, operator)) {
@@ -238,6 +241,27 @@ public class RoomServiceImpl implements RoomService {
                 && room.getStatus() != Room.RoomStatus.CANCELLED) {
             throw new IllegalArgumentException("只有已关闭的房间才能重新开始");
         }
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("房间名称不能为空");
+        }
+        validateRoomParameters(smallBlind, bigBlind, defaultChips, minBuyin, maxBuyin, maxSeats);
+        if (durationMinutes == null || durationMinutes <= 0) {
+            throw new IllegalArgumentException("房间时长必须大于0");
+        }
+        if (actionTimeSeconds == null || actionTimeSeconds < 5 || actionTimeSeconds > 300) {
+            throw new IllegalArgumentException("操作时间必须在5-300秒之间");
+        }
+
+        room.setName(name.trim());
+        room.setDescription(description);
+        room.setSmallBlind(smallBlind);
+        room.setBigBlind(bigBlind);
+        room.setDefaultChips(defaultChips);
+        room.setMinBuyin(minBuyin);
+        room.setMaxBuyin(maxBuyin);
+        room.setMaxSeats(maxSeats);
+        room.setDurationMinutes(durationMinutes);
+        room.setActionTimeSeconds(actionTimeSeconds);
         room.setStatus(Room.RoomStatus.WAITING);
         room.setStartedAt(null);
         room.setEndedAt(null);

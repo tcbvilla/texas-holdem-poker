@@ -1,18 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Auth.css';
 import { apiPost, setToken } from '../api';
+import { PUBLIC_APP_NAME, setPublicTitle } from '../branding';
 
 const Auth = ({ onAuthSuccess }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
         username: '',
-        email: '',
+        inviteCode: '',
         password: '',
         confirmPassword: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    useEffect(() => {
+        setPublicTitle();
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -37,6 +42,15 @@ const Auth = ({ onAuthSuccess }) => {
             return;
         }
 
+        if (!isLogin) {
+            const code = formData.inviteCode.trim().toUpperCase();
+            if (!/^[A-Z0-9]{12,32}$/.test(code)) {
+                setError('邀请码为12位及以上字母数字组合');
+                setLoading(false);
+                return;
+            }
+        }
+
         // 验证密码长度
         if (formData.password.length < 6) {
             setError('密码长度不能少于6位');
@@ -48,17 +62,20 @@ const Auth = ({ onAuthSuccess }) => {
             const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
             const requestData = isLogin 
                 ? { identifier: formData.username, password: formData.password }
-                : { username: formData.username, email: formData.email, password: formData.password };
+                : { username: formData.username, password: formData.password, inviteCode: formData.inviteCode.trim().toUpperCase() };
 
             const data = await apiPost(endpoint, requestData);
 
             if (data.success) {
                 setSuccess(isLogin ? '登录成功！' : '注册成功！');
-                // 保存 token 和用户信息
-                setToken(data.data.token);
-                localStorage.setItem('user', JSON.stringify(data.data));
+                const userData = {
+                    ...data.data,
+                    admin: Boolean(data.data.admin || String(data.data.username || '').toLowerCase() === 'admin'),
+                };
+                setToken(userData.token);
+                localStorage.setItem('user', JSON.stringify(userData));
                 if (onAuthSuccess) {
-                    setTimeout(() => onAuthSuccess(data.data), 600);
+                    onAuthSuccess(userData);
                 }
             } else {
                 setError(data.message || '操作失败');
@@ -74,7 +91,7 @@ const Auth = ({ onAuthSuccess }) => {
         setIsLogin(!isLogin);
         setFormData({
             username: '',
-            email: '',
+            inviteCode: '',
             password: '',
             confirmPassword: ''
         });
@@ -86,7 +103,7 @@ const Auth = ({ onAuthSuccess }) => {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
-                    <h1>🎰 德州扑克系统</h1>
+                    <h1>{PUBLIC_APP_NAME}</h1>
                     <h2>{isLogin ? '用户登录' : '用户注册'}</h2>
                 </div>
 
@@ -106,14 +123,14 @@ const Auth = ({ onAuthSuccess }) => {
 
                     {!isLogin && (
                         <div className="form-group">
-                            <label htmlFor="email">邮箱</label>
+                            <label htmlFor="inviteCode">邀请码</label>
                             <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                value={formData.email}
+                                type="text"
+                                id="inviteCode"
+                                name="inviteCode"
+                                value={formData.inviteCode}
                                 onChange={handleInputChange}
-                                placeholder="请输入邮箱"
+                                placeholder="请输入邀请码"
                                 required
                             />
                         </div>

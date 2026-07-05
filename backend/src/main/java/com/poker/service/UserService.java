@@ -8,9 +8,9 @@ import com.poker.entity.User;
 public interface UserService {
     
     /**
-     * 用户注册
+     * 用户注册（需邀请码）
      */
-    User register(String username, String email, String password);
+    User register(String username, String password, String inviteCode);
     
     /**
      * 用户登录

@@ -1,15 +1,112 @@
 .App {
   min-height: 100vh;
+}
+
+.App.public-theme {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.App.internal-theme {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .app-nav {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  padding: 15px 0;
+  padding: 15px 20px;
   display: flex;
   justify-content: center;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.app-nav a {
+  color: white;
+  text-decoration: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.app-nav a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.app-nav a.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: white;
+}
+
+.nav-user {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  padding: 0 8px;
+}
+
+.nav-logout-btn {
+  background: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.nav-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.public-landing {
+  max-width: 720px;
+  margin: 60px auto;
+  text-align: center;
+  color: white;
+  padding: 40px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.public-landing h1 {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+
+.public-tagline {
+  font-size: 1.2rem;
+  opacity: 0.95;
+  margin-bottom: 12px;
+}
+
+.public-desc {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: 32px;
+}
+
+.public-enter-btn {
+  background: white;
+  color: #1d4ed8;
+  border: none;
+  padding: 14px 36px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: all 0.3s ease;
+}
+
+.public-enter-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .app-nav button {

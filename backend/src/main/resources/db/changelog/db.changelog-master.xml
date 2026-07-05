@@ -7,5 +7,6 @@
 
     <include file="db/changelog/001-create-tables.xml"/>
     <include file="db/changelog/002-add-settlement-snapshot.xml"/>
+    <include file="db/changelog/003-create-invite-codes.xml"/>
 
 </databaseChangeLog>

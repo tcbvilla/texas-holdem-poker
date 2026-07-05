@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './PokerTable.css';
 import { apiGet, apiPost } from '../api';
+import { setInternalTitle } from '../branding';
 
 const POLL_INTERVAL = 1500;
 
@@ -25,6 +26,7 @@ const PokerTable = ({ roomId, user, onBack }) => {
     }, [roomId]);
 
     useEffect(() => {
+        setInternalTitle('牌桌');
         loadState();
         pollRef.current = setInterval(loadState, POLL_INTERVAL);
         return () => clearInterval(pollRef.current);
