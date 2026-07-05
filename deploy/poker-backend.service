@@ -1,0 +1,21 @@
+[Unit]
+Description=Texas Holdem Poker Backend
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=poker
+Group=poker
+WorkingDirectory=/opt/poker
+EnvironmentFile=/opt/poker/.env
+ExecStart=/usr/bin/java -jar /opt/poker/poker-system.jar
+Restart=on-failure
+RestartSec=10
+SuccessExitStatus=143
+
+# Hardening (optional)
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

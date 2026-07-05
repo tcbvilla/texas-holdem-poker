@@ -1,0 +1,15 @@
+# Local development profile (default). Activate with SPRING_PROFILES_ACTIVE=dev
+
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/poker_db
+    username: chenbo
+    password:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.poker: DEBUG
+    org.springframework.web: DEBUG

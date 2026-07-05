@@ -297,6 +297,7 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Application specific
-application-*.yml
-application-*.properties
+# Local secret overrides (never commit real passwords)
+/application-local.yml
+/application-local.properties
+/deploy/.env
