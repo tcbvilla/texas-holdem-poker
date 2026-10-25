@@ -27,6 +27,7 @@ const RoomManagement = () => {
         minBuyin: 100,
         maxBuyin: 2000,
         maxSeats: 6,
+        gameMode: 'STANDARD',
         durationMinutes: 60,
         actionTimeSeconds: 30
     });
@@ -39,10 +40,23 @@ const RoomManagement = () => {
         defaultChips: room.defaultChips,
         minBuyin: room.minBuyin,
         maxBuyin: room.maxBuyin,
-        maxSeats: room.maxSeats,
+        maxSeats: room.gameMode === 'ASYMMETRIC_HU' ? 2 : room.maxSeats,
+        gameMode: room.gameMode || 'STANDARD',
         durationMinutes: room.durationMinutes,
         actionTimeSeconds: room.actionTimeSeconds
     });
+
+    const applyGameMode = (form, setForm, mode) => {
+        setForm({
+            ...form,
+            gameMode: mode,
+            maxSeats: mode === 'ASYMMETRIC_HU' ? 2 : (form.maxSeats === 2 && form.gameMode === 'ASYMMETRIC_HU' ? 6 : form.maxSeats)
+        });
+    };
+
+    const gameModeLabel = (mode) => (
+        mode === 'ASYMMETRIC_HU' ? TERMS.gameModeAsymmetric : TERMS.gameModeStandard
+    );
 
     const [createForm, setCreateForm] = useState(emptyRoomForm());
 
@@ -239,10 +253,24 @@ const RoomManagement = () => {
                                     />
                                 </div>
                                 <div className="form-group">
+                                    <label htmlFor="gameMode">玩法模式</label>
+                                    <select
+                                        id="gameMode"
+                                        value={createForm.gameMode}
+                                        onChange={(e) => applyGameMode(createForm, setCreateForm, e.target.value)}
+                                    >
+                                        <option value="STANDARD">标准德州</option>
+                                        <option value="ASYMMETRIC_HU">盲信息单挑（2人）</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
                                     <label htmlFor="maxSeats">最大座位数</label>
                                     <select
                                         id="maxSeats"
                                         value={createForm.maxSeats}
+                                        disabled={createForm.gameMode === 'ASYMMETRIC_HU'}
                                         onChange={(e) => setCreateForm({...createForm, maxSeats: parseInt(e.target.value)})}
                                     >
                                         {[2,3,4,5,6,7,8,9].map(num => (
@@ -401,6 +429,10 @@ const RoomManagement = () => {
                                             <span className="value">{room.smallBlind}/{room.bigBlind}</span>
                                         </div>
                                         <div className="detail-item">
+                                            <span className="label">{TERMS.gameMode}:</span>
+                                            <span className="value">{gameModeLabel(room.gameMode)}</span>
+                                        </div>
+                                        <div className="detail-item">
                                             <span className="label">{TERMS.maxSeats}:</span>
                                             <span className="value">{room.maxSeats}人</span>
                                         </div>
@@ -492,10 +524,24 @@ const RoomManagement = () => {
                                     />
                                 </div>
                                 <div className="form-group">
+                                    <label htmlFor="restart-gameMode">玩法模式</label>
+                                    <select
+                                        id="restart-gameMode"
+                                        value={restartForm.gameMode || 'STANDARD'}
+                                        onChange={(e) => applyGameMode(restartForm, setRestartForm, e.target.value)}
+                                    >
+                                        <option value="STANDARD">标准德州</option>
+                                        <option value="ASYMMETRIC_HU">盲信息单挑（2人）</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
                                     <label htmlFor="restart-maxSeats">最大座位数</label>
                                     <select
                                         id="restart-maxSeats"
                                         value={restartForm.maxSeats}
+                                        disabled={restartForm.gameMode === 'ASYMMETRIC_HU'}
                                         onChange={(e) => setRestartForm({ ...restartForm, maxSeats: parseInt(e.target.value, 10) })}
                                     >
                                         {[2, 3, 4, 5, 6, 7, 8, 9].map((num) => (

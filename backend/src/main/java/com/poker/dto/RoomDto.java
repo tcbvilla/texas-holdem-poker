@@ -19,6 +19,7 @@ public class RoomDto {
     private Long minBuyin;
     private Long maxBuyin;
     private Integer maxSeats;
+    private String gameMode;
     private Integer durationMinutes;
     private Integer actionTimeSeconds;
     private String status;

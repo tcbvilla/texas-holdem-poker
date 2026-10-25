@@ -56,6 +56,10 @@ public class Room {
     
     @Column(name = "max_seats", nullable = false)
     private Integer maxSeats = 9;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "game_mode", nullable = false, length = 32)
+    private GameMode gameMode = GameMode.STANDARD;
     
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
@@ -97,5 +101,14 @@ public class Room {
         RUNNING,   // 进行中
         FINISHED,  // 已结束
         CANCELLED  // 已取消
+    }
+
+    /**
+     * STANDARD: normal Texas Hold'em.
+     * ASYMMETRIC_HU: heads-up only; one player sees opponent holes but not board (roles swap each hand).
+     */
+    public enum GameMode {
+        STANDARD,
+        ASYMMETRIC_HU
     }
 }

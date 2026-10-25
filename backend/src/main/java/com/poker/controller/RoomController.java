@@ -60,7 +60,8 @@ public class RoomController {
                     request.getMaxBuyin(),
                     request.getMaxSeats(),
                     request.getDurationMinutes(),
-                    request.getActionTimeSeconds()
+                    request.getActionTimeSeconds(),
+                    parseGameMode(request.getGameMode())
             );
             
             response.put("success", true);
@@ -302,7 +303,8 @@ public class RoomController {
                     request.getMaxBuyin(),
                     request.getMaxSeats(),
                     request.getDurationMinutes(),
-                    request.getActionTimeSeconds()
+                    request.getActionTimeSeconds(),
+                    parseGameMode(request.getGameMode())
             );
             Room room = roomService.getRoomById(roomId);
             response.put("success", true);
@@ -335,6 +337,7 @@ public class RoomController {
         private Integer maxSeats;
         private Integer durationMinutes;
         private Integer actionTimeSeconds;
+        private String gameMode;
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -365,6 +368,9 @@ public class RoomController {
 
         public Integer getActionTimeSeconds() { return actionTimeSeconds; }
         public void setActionTimeSeconds(Integer actionTimeSeconds) { this.actionTimeSeconds = actionTimeSeconds; }
+
+        public String getGameMode() { return gameMode; }
+        public void setGameMode(String gameMode) { this.gameMode = gameMode; }
     }
 
     /**
@@ -382,6 +388,7 @@ public class RoomController {
         private Integer maxSeats;
         private Integer durationMinutes;
         private Integer actionTimeSeconds;
+        private String gameMode;
         
         // Getters and Setters
         public Long getClubId() { return clubId; }
@@ -416,6 +423,20 @@ public class RoomController {
         
         public Integer getActionTimeSeconds() { return actionTimeSeconds; }
         public void setActionTimeSeconds(Integer actionTimeSeconds) { this.actionTimeSeconds = actionTimeSeconds; }
+
+        public String getGameMode() { return gameMode; }
+        public void setGameMode(String gameMode) { this.gameMode = gameMode; }
+    }
+
+    private Room.GameMode parseGameMode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Room.GameMode.STANDARD;
+        }
+        try {
+            return Room.GameMode.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown game mode: " + raw);
+        }
     }
     
     /**
@@ -433,6 +454,7 @@ public class RoomController {
         dto.setMinBuyin(room.getMinBuyin());
         dto.setMaxBuyin(room.getMaxBuyin());
         dto.setMaxSeats(room.getMaxSeats());
+        dto.setGameMode(room.getGameMode() != null ? room.getGameMode().name() : Room.GameMode.STANDARD.name());
         dto.setDurationMinutes(room.getDurationMinutes());
         dto.setActionTimeSeconds(room.getActionTimeSeconds());
         dto.setStatus(room.getStatus().toString());

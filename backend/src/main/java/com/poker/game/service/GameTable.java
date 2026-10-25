@@ -67,6 +67,7 @@ public class GameTable {
     private final long defaultChips;
     private final int actionTimeSeconds;
     private final Integer durationMinutes;
+    private final Room.GameMode gameMode;
 
     private final PotManager potManager;
     private final HandEvaluator handEvaluator;
@@ -100,6 +101,7 @@ public class GameTable {
         this.defaultChips = room.getDefaultChips() != null ? room.getDefaultChips() : 0L;
         this.actionTimeSeconds = room.getActionTimeSeconds() != null ? room.getActionTimeSeconds() : 30;
         this.durationMinutes = room.getDurationMinutes();
+        this.gameMode = room.getGameMode() != null ? room.getGameMode() : Room.GameMode.STANDARD;
         this.potManager = potManager;
         this.handEvaluator = handEvaluator;
     }
@@ -151,6 +153,9 @@ public class GameTable {
     public synchronized void join(int userId, String name, long buyin) {
         if (seats.containsKey(userId)) {
             throw new IllegalStateException("You are already seated at this table");
+        }
+        if (gameMode == Room.GameMode.ASYMMETRIC_HU && seats.size() >= 2) {
+            throw new IllegalStateException("Asymmetric heads-up table allows only 2 players");
         }
         if (buyin < minBuyin || buyin > maxBuyin) {
             throw new IllegalArgumentException("Buy-in must be between " + minBuyin + " and " + maxBuyin);
@@ -270,6 +275,7 @@ public class GameTable {
         view.put("defaultChips", defaultChips);
         view.put("actionTimeSeconds", actionTimeSeconds);
         view.put("durationMinutes", durationMinutes);
+        view.put("gameMode", gameMode.name());
         view.put("myUserId", viewerId);
         view.put("iAmSeated", seats.containsKey(viewerId));
         view.put("handNumber", handNumber);
@@ -322,18 +328,34 @@ public class GameTable {
             settlement = currentGame.getSettlementResult();
         }
 
-        view.put("currentBet", currentBet);
-        view.put("totalPot", totalPot);
-        view.put("communityCards", community);
-        view.put("gameState", currentGame != null ? currentGame.getCurrentState().name() : null);
-        if (settlement != null) {
-            view.put("settlementSummary", settlement.getSummary());
-        }
-
         boolean revealAll = currentGame != null
                 && (currentGame.getCurrentState() == GameEngine.GameState.SHOWDOWN
                     || currentGame.getCurrentState() == GameEngine.GameState.FINISHED)
                 && showdown != null;
+
+        boolean asymmetric = gameMode == Room.GameMode.ASYMMETRIC_HU;
+        Integer seerUserId = asymmetric ? resolveSeerUserId() : null;
+        boolean viewerSeated = seats.containsKey(viewerId);
+        boolean viewerIsSeer = viewerSeated && seerUserId != null && seerUserId.equals(viewerId);
+        String myRole = null;
+        if (asymmetric && viewerSeated && seerUserId != null) {
+            myRole = viewerIsSeer ? "SEER" : "NORMAL";
+        }
+        view.put("myRole", myRole);
+
+        // SEER cannot see board while the hand is live; showdown/finished always reveals board.
+        boolean hideCommunity = asymmetric && handInProgress && viewerIsSeer && !revealAll
+                && currentGame != null
+                && currentGame.getCurrentState() != GameEngine.GameState.SHOWDOWN
+                && currentGame.getCurrentState() != GameEngine.GameState.FINISHED;
+        view.put("currentBet", currentBet);
+        view.put("totalPot", totalPot);
+        view.put("communityCards", hideCommunity ? List.of() : community);
+        view.put("communityHidden", hideCommunity);
+        view.put("gameState", currentGame != null ? currentGame.getCurrentState().name() : null);
+        if (settlement != null) {
+            view.put("settlementSummary", settlement.getSummary());
+        }
 
         List<Map<String, Object>> playerViews = new ArrayList<>();
         List<Seat> sortedSeats = seats.values().stream()
@@ -382,7 +404,15 @@ public class GameTable {
                 boolean self = seat.userId == viewerId;
                 boolean revealThis = revealAll && !ep.isHasFolded()
                         && showdown != null && showdown.containsKey(seat.userId);
-                if (self || revealThis) {
+                // SEER sees opponent hole cards during the live hand (not for spectators).
+                boolean seerSeesOpponent = asymmetric && handInProgress && viewerIsSeer && !self
+                        && !revealAll;
+                // Asymmetric showdown/finished: force-reveal non-folded hole cards + full board.
+                boolean asymShowdownReveal = asymmetric && !ep.isHasFolded()
+                        && currentGame != null
+                        && (currentGame.getCurrentState() == GameEngine.GameState.SHOWDOWN
+                            || currentGame.getCurrentState() == GameEngine.GameState.FINISHED);
+                if (self || revealThis || seerSeesOpponent || asymShowdownReveal) {
                     showCards = true;
                     for (Card c : ep.getHoleCards()) {
                         holeCards.add(cardToMap(c));
@@ -640,6 +670,22 @@ public class GameTable {
                 .filter(s -> s.chips.compareTo(BigDecimal.ZERO) > 0)
                 .sorted(Comparator.comparingInt(s -> s.seatIndex))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Asymmetric HU: odd hands seat0 is SEER, even hands seat1 is SEER.
+     */
+    private Integer resolveSeerUserId() {
+        if (gameMode != Room.GameMode.ASYMMETRIC_HU || handNumber <= 0) {
+            return null;
+        }
+        List<Seat> ordered = seats.values().stream()
+                .sorted(Comparator.comparingInt(s -> s.seatIndex))
+                .collect(Collectors.toList());
+        if (ordered.size() < 2) {
+            return null;
+        }
+        return (handNumber % 2 == 1) ? ordered.get(0).userId : ordered.get(1).userId;
     }
 
     private int allocateSeatIndex() {

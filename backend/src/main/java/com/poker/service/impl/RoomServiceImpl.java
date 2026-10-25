@@ -33,11 +33,15 @@ public class RoomServiceImpl implements RoomService {
     public Room createRoom(String name, String description, Club club, User creator,
                           Integer smallBlind, Integer bigBlind, Long defaultChips,
                           Long minBuyin, Long maxBuyin, Integer maxSeats,
-                          Integer durationMinutes, Integer actionTimeSeconds) {
+                          Integer durationMinutes, Integer actionTimeSeconds,
+                          Room.GameMode gameMode) {
         log.info("创建房间: name={}, club={}, creator={}", name, club.getName(), creator.getUsername());
+
+        Room.GameMode mode = gameMode != null ? gameMode : Room.GameMode.STANDARD;
+        Integer seats = resolveMaxSeats(mode, maxSeats);
         
         // 验证参数
-        validateRoomParameters(smallBlind, bigBlind, defaultChips, minBuyin, maxBuyin, maxSeats);
+        validateRoomParameters(smallBlind, bigBlind, defaultChips, minBuyin, maxBuyin, seats);
         
         // 生成唯一房间号
         String roomCode = generateRoomCode();
@@ -53,7 +57,8 @@ public class RoomServiceImpl implements RoomService {
         room.setDefaultChips(defaultChips);
         room.setMinBuyin(minBuyin);
         room.setMaxBuyin(maxBuyin);
-        room.setMaxSeats(maxSeats);
+        room.setMaxSeats(seats);
+        room.setGameMode(mode);
         room.setDurationMinutes(durationMinutes);
         room.setActionTimeSeconds(actionTimeSeconds);
         room.setStatus(Room.RoomStatus.WAITING);
@@ -61,7 +66,8 @@ public class RoomServiceImpl implements RoomService {
         
         room = roomRepository.save(room);
         
-        log.info("房间创建成功: id={}, roomCode={}, name={}", room.getId(), room.getRoomCode(), room.getName());
+        log.info("房间创建成功: id={}, roomCode={}, name={}, gameMode={}",
+                room.getId(), room.getRoomCode(), room.getName(), mode);
         return room;
     }
     
@@ -231,7 +237,8 @@ public class RoomServiceImpl implements RoomService {
     public void restartRoom(Long roomId, User operator, String name, String description,
                             Integer smallBlind, Integer bigBlind, Long defaultChips,
                             Long minBuyin, Long maxBuyin, Integer maxSeats,
-                            Integer durationMinutes, Integer actionTimeSeconds) {
+                            Integer durationMinutes, Integer actionTimeSeconds,
+                            Room.GameMode gameMode) {
         log.info("Restarting room: roomId={}, operator={}", roomId, operator.getUsername());
         Room room = getRoomById(roomId);
         if (!canOperateRoom(room, operator)) {
@@ -244,7 +251,9 @@ public class RoomServiceImpl implements RoomService {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("房间名称不能为空");
         }
-        validateRoomParameters(smallBlind, bigBlind, defaultChips, minBuyin, maxBuyin, maxSeats);
+        Room.GameMode mode = gameMode != null ? gameMode : Room.GameMode.STANDARD;
+        Integer seats = resolveMaxSeats(mode, maxSeats);
+        validateRoomParameters(smallBlind, bigBlind, defaultChips, minBuyin, maxBuyin, seats);
         if (durationMinutes == null || durationMinutes <= 0) {
             throw new IllegalArgumentException("房间时长必须大于0");
         }
@@ -259,7 +268,8 @@ public class RoomServiceImpl implements RoomService {
         room.setDefaultChips(defaultChips);
         room.setMinBuyin(minBuyin);
         room.setMaxBuyin(maxBuyin);
-        room.setMaxSeats(maxSeats);
+        room.setMaxSeats(seats);
+        room.setGameMode(mode);
         room.setDurationMinutes(durationMinutes);
         room.setActionTimeSeconds(actionTimeSeconds);
         room.setStatus(Room.RoomStatus.WAITING);
@@ -267,7 +277,14 @@ public class RoomServiceImpl implements RoomService {
         room.setEndedAt(null);
         room.setSettlementSnapshot(null);
         roomRepository.save(room);
-        log.info("Room restarted: roomId={}, roomCode={}", roomId, room.getRoomCode());
+        log.info("Room restarted: roomId={}, roomCode={}, gameMode={}", roomId, room.getRoomCode(), mode);
+    }
+
+    private Integer resolveMaxSeats(Room.GameMode mode, Integer maxSeats) {
+        if (mode == Room.GameMode.ASYMMETRIC_HU) {
+            return 2;
+        }
+        return maxSeats;
     }
     
     @Override

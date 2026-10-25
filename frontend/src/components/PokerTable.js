@@ -218,6 +218,13 @@ const PokerTable = ({ roomId, user, onBack }) => {
                     {state.roomName} <span className="room-code">#{state.roomCode}</span>
                 </div>
                 <div className="table-blinds">盲注 {state.smallBlind}/{state.bigBlind}</div>
+                {state.gameMode === 'ASYMMETRIC_HU' && (
+                    <div className="mode-tag">
+                        盲信息单挑
+                        {state.myRole === 'SEER' && ' · 本手：可见对手手牌'}
+                        {state.myRole === 'NORMAL' && ' · 本手：可见公共牌'}
+                    </div>
+                )}
                 {isPlaying && state.actionTimeRemaining != null && (
                     <div className="action-timer">行动倒计时 {state.actionTimeRemaining}s</div>
                 )}
@@ -233,9 +240,11 @@ const PokerTable = ({ roomId, user, onBack }) => {
                     <div className="board-area">
                         <div className="pot-label">底池: {fmt(state.totalPot)}</div>
                         <div className="community-cards">
-                            {state.communityCards.length === 0
-                                ? <div className="board-placeholder">等待发牌</div>
-                                : state.communityCards.map((c, i) => <Card key={i} card={c} small />)}
+                            {state.communityHidden
+                                ? <div className="board-placeholder board-hidden">本手你看不到公共牌</div>
+                                : (state.communityCards || []).length === 0
+                                    ? <div className="board-placeholder">等待发牌</div>
+                                    : state.communityCards.map((c, i) => <Card key={i} card={c} small />)}
                         </div>
                         {state.gameState && <div className="game-state-tag">{stateLabel(state.gameState)}</div>}
                     </div>

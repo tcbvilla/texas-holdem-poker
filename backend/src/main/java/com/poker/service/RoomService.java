@@ -17,7 +17,8 @@ public interface RoomService {
     Room createRoom(String name, String description, Club club, User creator,
                    Integer smallBlind, Integer bigBlind, Long defaultChips,
                    Long minBuyin, Long maxBuyin, Integer maxSeats,
-                   Integer durationMinutes, Integer actionTimeSeconds);
+                   Integer durationMinutes, Integer actionTimeSeconds,
+                   Room.GameMode gameMode);
     
     /**
      * 根据房间号获取房间
@@ -85,7 +86,8 @@ public interface RoomService {
     void restartRoom(Long roomId, User operator, String name, String description,
                      Integer smallBlind, Integer bigBlind, Long defaultChips,
                      Long minBuyin, Long maxBuyin, Integer maxSeats,
-                     Integer durationMinutes, Integer actionTimeSeconds);
+                     Integer durationMinutes, Integer actionTimeSeconds,
+                     Room.GameMode gameMode);
     
     /**
      * 检查用户是否有权限操作房间
