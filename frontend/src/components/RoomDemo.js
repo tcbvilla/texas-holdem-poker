@@ -14,7 +14,7 @@ const RoomDemo = () => {
         setError(null);
         
         try {
-            const response = await fetch('/api/demo/room/create-test', {
+            const response = await fetch('/school/api/demo/room/create-test', {
                 method: 'POST'
             });
             
@@ -36,7 +36,7 @@ const RoomDemo = () => {
     // 获取房间信息
     const fetchRoomInfo = async (roomId) => {
         try {
-            const response = await fetch(`/api/demo/room/${roomId}`);
+            const response = await fetch(`/school/api/demo/room/${roomId}`);
             const data = await response.json();
             
             if (data.success) {
@@ -50,7 +50,7 @@ const RoomDemo = () => {
     // 获取游戏状态
     const fetchGameStatus = async (roomId) => {
         try {
-            const response = await fetch(`/api/demo/room/${roomId}/game/status`);
+            const response = await fetch(`/school/api/demo/room/${roomId}/game/status`);
             const data = await response.json();
             
             if (data.success) {
@@ -78,7 +78,7 @@ const RoomDemo = () => {
                 body.append('amount', amount.toString());
             }
             
-            const response = await fetch(`/api/demo/room/${roomInfo.roomId}/game/action`, {
+            const response = await fetch(`/school/api/demo/room/${roomInfo.roomId}/game/action`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -118,7 +118,7 @@ const RoomDemo = () => {
         setError(null);
         
         try {
-            const response = await fetch(`/api/demo/room/${roomInfo.roomId}/game/next-hand`, {
+            const response = await fetch(`/school/api/demo/room/${roomInfo.roomId}/game/next-hand`, {
                 method: 'POST'
             });
             
@@ -145,7 +145,7 @@ const RoomDemo = () => {
         setError(null);
         
         try {
-            const response = await fetch(`/api/demo/room/${roomInfo.roomId}/rebuy`, {
+            const response = await fetch(`/school/api/demo/room/${roomInfo.roomId}/rebuy`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -175,7 +175,7 @@ const RoomDemo = () => {
         setError(null);
         
         try {
-            const response = await fetch(`/api/demo/room/${roomInfo.roomId}/close`, {
+            const response = await fetch(`/school/api/demo/room/${roomInfo.roomId}/close`, {
                 method: 'POST'
             });
             

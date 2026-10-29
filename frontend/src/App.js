@@ -307,7 +307,7 @@ function App() {
   });
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/school">
       <AppLayout user={user} setUser={setUser} />
     </BrowserRouter>
   );

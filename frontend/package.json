@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Texas Hold'em Poker System Frontend",
   "private": true,
+  "homepage": "/school",
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

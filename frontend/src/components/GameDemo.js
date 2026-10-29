@@ -31,7 +31,7 @@ const GameDemo = () => {
     setError(null);
     
     try {
-      const response = await fetch(`/api/demo/game/create?playerCount=${playerCount}&smallBlind=${smallBlind}&bigBlind=${bigBlind}&initialChips=${initialChips}`, {
+      const response = await fetch(`/school/api/demo/game/create?playerCount=${playerCount}&smallBlind=${smallBlind}&bigBlind=${bigBlind}&initialChips=${initialChips}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ const GameDemo = () => {
   // 获取游戏状态
   const refreshGameState = async () => {
     try {
-      const response = await fetch('/api/demo/game/status');
+      const response = await fetch('/school/api/demo/game/status');
       const data = await response.json();
       
       if (data.success) {
@@ -72,7 +72,7 @@ const GameDemo = () => {
     setError(null);
     
     try {
-      let url = `/api/demo/game/action?playerId=${playerId}&action=${action}`;
+      let url = `/school/api/demo/game/action?playerId=${playerId}&action=${action}`;
       if (amount !== null) {
         url += `&amount=${amount}`;
       }
@@ -106,7 +106,7 @@ const GameDemo = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/demo/game/next-hand', {
+      const response = await fetch('/school/api/demo/game/next-hand', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ const GameDemo = () => {
   // 获取玩家可用行动
   const getPlayerActions = async (playerId) => {
     try {
-      const response = await fetch(`/api/demo/game/actions/${playerId}`);
+      const response = await fetch(`/school/api/demo/game/actions/${playerId}`);
       const data = await response.json();
       return data.success ? data.actions : [];
     } catch (err) {

@@ -133,16 +133,15 @@ journalctl -u poker-backend -f
 
 ```bash
 sudo cp /opt/poker/deploy/nginx-poker.conf /etc/nginx/sites-available/poker
-sudo nano /etc/nginx/sites-available/poker
-# 将 YOUR_DOMAIN_OR_IP 改成公网 IP 或域名
-
 sudo ln -sf /etc/nginx/sites-available/poker /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default   # 可选，避免冲突
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo mkdir -p /opt/www
+sudo ln -sfn /opt/poker/frontend/build /opt/www/school
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-浏览器访问：`http://<公网IP>/`
+这份配置和海航仓库里的 `deploy/nginx-ffl.conf` 相同，只启用其中一份。浏览器访问：`http://47.253.226.88/school/`。打开 `http://47.253.226.88/` 会返回 404。
 
 ---
 
@@ -150,7 +149,7 @@ sudo systemctl reload nginx
 
 1. 打开首页，注册/登录
 2. 创建俱乐部、房间，双浏览器（或无痕）测试对战
-3. 后端健康：`curl -s http://127.0.0.1:8080/api/public/clubs`（若有公开接口）
+3. 后端健康：`curl -s http://127.0.0.1:8080/school/api/public/clubs`（若有公开接口）
 
 ---
 
@@ -185,5 +184,5 @@ sudo systemctl reload nginx
 |------|------|
 | 502 Bad Gateway | `systemctl status poker-backend`，`journalctl -u poker-backend` |
 | 数据库连不上 | `.env` 中 `DB_URL`、密码；RDS 白名单是否含 ECS 内网 IP |
-| 页面空白 | `ls /opt/poker/frontend/build`；Nginx `root` 路径是否正确 |
+| 页面空白 | `ls /opt/www/school` 是否链到 `frontend/build`；访问路径是 `/school/` |
 | API 403/401 | 浏览器 F12 看 Network；Token 是否带在 Authorization 头 |

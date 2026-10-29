@@ -38,7 +38,8 @@ export async function api(path, options = {}) {
     }
 
     try {
-        const res = await fetch(path, { ...options, headers, body });
+        const url = path.startsWith('/') ? '/school' + path : path;
+        const res = await fetch(url, { ...options, headers, body });
         const text = await res.text();
         return text ? JSON.parse(text) : { success: res.ok };
     } catch (err) {

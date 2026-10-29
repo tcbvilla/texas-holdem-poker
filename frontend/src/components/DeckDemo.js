@@ -20,7 +20,7 @@ const DeckDemo = () => {
         params.append('customSeed', customSeed.trim());
       }
 
-      const response = await fetch(`/api/demo/deck/texas-holdem-demo?${params}`, {
+      const response = await fetch(`/school/api/demo/deck/texas-holdem-demo?${params}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ const DeckDemo = () => {
   const runRandomnessTest = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/demo/deck/shuffle-randomness-test?iterations=1000', {
+      const response = await fetch('/school/api/demo/deck/shuffle-randomness-test?iterations=1000', {
         method: 'POST'
       });
       
