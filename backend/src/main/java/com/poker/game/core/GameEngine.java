@@ -213,6 +213,12 @@ public class GameEngine {
     private int buttonSeatIndex = 0;
 
     /**
+     * Full 5-card board peeked at hand start (burn/flop/turn/river order).
+     * Asymmetric HU BOARD_VIEWER sees this from preflop; dealing still progresses normally.
+     */
+    private List<Card> scheduledCommunityBoard = new ArrayList<>();
+
+    /**
      * 初始化新游戏
      */
     public void initializeGame(String gameId, List<Player> players, int smallBlind, int bigBlind) {
@@ -256,6 +262,7 @@ public class GameEngine {
         // 重置游戏状态
         currentState = GameState.PRE_FLOP;
         communityCards.clear();
+        scheduledCommunityBoard.clear();
         currentBet = BigDecimal.ZERO;
         totalPot = BigDecimal.ZERO;
         
@@ -287,6 +294,10 @@ public class GameEngine {
 
         // 发底牌
         dealHoleCards();
+
+        // Peek the eventual board (does not deal); streets still deal from the deck in order.
+        scheduledCommunityBoard = new ArrayList<>(deck.peekUpcomingCommunityBoard());
+        log.info("Scheduled community board for this hand: {}", scheduledCommunityBoard);
 
         // 收取盲注
         collectBlinds();

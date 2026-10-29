@@ -169,6 +169,27 @@ public class Deck {
     }
     
     /**
+     * Peek the next community board without dealing or burning.
+     * Order matches Texas Hold'em: burn, flop×3, burn, turn, burn, river.
+     *
+     * @return five community cards that will be dealt, or empty if the deck is too short
+     */
+    public List<Card> peekUpcomingCommunityBoard() {
+        // indices in remaining deck: 0=burn, 1-3=flop, 4=burn, 5=turn, 6=burn, 7=river
+        if (cards.size() < 8) {
+            log.warn("Not enough cards to peek community board, remaining={}", cards.size());
+            return new ArrayList<>();
+        }
+        List<Card> board = new ArrayList<>(5);
+        board.add(cards.get(1));
+        board.add(cards.get(2));
+        board.add(cards.get(3));
+        board.add(cards.get(5));
+        board.add(cards.get(7));
+        return board;
+    }
+
+    /**
      * 发一张牌
      * 
      * @return 发出的牌，如果牌库为空则返回null

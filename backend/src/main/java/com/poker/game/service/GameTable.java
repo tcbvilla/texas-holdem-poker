@@ -334,24 +334,36 @@ public class GameTable {
                 && showdown != null;
 
         boolean asymmetric = gameMode == Room.GameMode.ASYMMETRIC_HU;
-        Integer seerUserId = asymmetric ? resolveSeerUserId() : null;
+        Integer holeViewerUserId = asymmetric ? resolveHoleViewerUserId() : null;
         boolean viewerSeated = seats.containsKey(viewerId);
-        boolean viewerIsSeer = viewerSeated && seerUserId != null && seerUserId.equals(viewerId);
+        boolean viewerIsHoleViewer = viewerSeated && holeViewerUserId != null && holeViewerUserId.equals(viewerId);
+        boolean viewerIsBoardViewer = asymmetric && viewerSeated && holeViewerUserId != null && !viewerIsHoleViewer;
         String myRole = null;
-        if (asymmetric && viewerSeated && seerUserId != null) {
-            myRole = viewerIsSeer ? "SEER" : "NORMAL";
+        if (asymmetric && viewerSeated && holeViewerUserId != null) {
+            myRole = viewerIsHoleViewer ? "HOLE_VIEWER" : "BOARD_VIEWER";
         }
         view.put("myRole", myRole);
 
-        // SEER cannot see board while the hand is live; showdown/finished always reveals board.
-        boolean hideCommunity = asymmetric && handInProgress && viewerIsSeer && !revealAll
-                && currentGame != null
+        // BOARD_VIEWER sees the full scheduled 5-card board from preflop; others see progressive board.
+        List<Map<String, Object>> communityForViewer = community;
+        boolean fullBoardPreview = false;
+        if (asymmetric && viewerIsBoardViewer && currentGame != null
                 && currentGame.getCurrentState() != GameEngine.GameState.SHOWDOWN
-                && currentGame.getCurrentState() != GameEngine.GameState.FINISHED;
+                && currentGame.getCurrentState() != GameEngine.GameState.FINISHED) {
+            List<Card> scheduled = currentGame.getScheduledCommunityBoard();
+            if (scheduled != null && scheduled.size() == 5) {
+                communityForViewer = new ArrayList<>();
+                for (Card c : scheduled) {
+                    communityForViewer.add(cardToMap(c));
+                }
+                fullBoardPreview = community.size() < 5;
+            }
+        }
         view.put("currentBet", currentBet);
         view.put("totalPot", totalPot);
-        view.put("communityCards", hideCommunity ? List.of() : community);
-        view.put("communityHidden", hideCommunity);
+        view.put("communityCards", communityForViewer);
+        view.put("communityHidden", false);
+        view.put("fullBoardPreview", fullBoardPreview);
         view.put("gameState", currentGame != null ? currentGame.getCurrentState().name() : null);
         if (settlement != null) {
             view.put("settlementSummary", settlement.getSummary());
@@ -404,15 +416,15 @@ public class GameTable {
                 boolean self = seat.userId == viewerId;
                 boolean revealThis = revealAll && !ep.isHasFolded()
                         && showdown != null && showdown.containsKey(seat.userId);
-                // SEER sees opponent hole cards during the live hand (not for spectators).
-                boolean seerSeesOpponent = asymmetric && handInProgress && viewerIsSeer && !self
-                        && !revealAll;
+                // HOLE_VIEWER sees opponent hole cards during the live hand (not spectators).
+                boolean holeViewerSeesOpponent = asymmetric && handInProgress && viewerIsHoleViewer
+                        && !self && !revealAll;
                 // Asymmetric showdown/finished: force-reveal non-folded hole cards + full board.
                 boolean asymShowdownReveal = asymmetric && !ep.isHasFolded()
                         && currentGame != null
                         && (currentGame.getCurrentState() == GameEngine.GameState.SHOWDOWN
                             || currentGame.getCurrentState() == GameEngine.GameState.FINISHED);
-                if (self || revealThis || seerSeesOpponent || asymShowdownReveal) {
+                if (self || revealThis || holeViewerSeesOpponent || asymShowdownReveal) {
                     showCards = true;
                     for (Card c : ep.getHoleCards()) {
                         holeCards.add(cardToMap(c));
@@ -673,9 +685,10 @@ public class GameTable {
     }
 
     /**
-     * Asymmetric HU: odd hands seat0 is SEER, even hands seat1 is SEER.
+     * Asymmetric HU: odd hands seat0 is HOLE_VIEWER, even hands seat1 is HOLE_VIEWER.
+     * The other seated player is BOARD_VIEWER.
      */
-    private Integer resolveSeerUserId() {
+    private Integer resolveHoleViewerUserId() {
         if (gameMode != Room.GameMode.ASYMMETRIC_HU || handNumber <= 0) {
             return null;
         }
